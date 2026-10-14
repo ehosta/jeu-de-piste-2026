@@ -11,12 +11,8 @@
 app/              # Nuxt app (pages, components, layouts…)
   app.vue         # Root component
 public/           # Static assets served as-is
-test/
-  unit/           # Unit tests (Vitest)
-  nuxt/           # Nuxt component tests (Vitest + Nuxt env)
-tests/            # E2E tests (Playwright)
+test/             # Tests (Vitest + Nuxt environment)
 docs/             # Project documentation
 nuxt.config.ts    # Nuxt configuration and modules
 vitest.config.ts  # Vitest configuration
-playwright.config.ts # Playwright configuration
 ```
