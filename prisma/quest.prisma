@@ -1,0 +1,50 @@
+model Npc {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+
+  name String
+  lore String
+
+  quests Quest[]
+}
+
+model Quest {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  npcId String @db.Uuid
+  npc   Npc    @relation(fields: [npcId], references: [id])
+
+  label     String
+  answer    String
+  teamQuest TeamQuest[]
+}
+
+enum TeamQuestStatus {
+  HIDDEN
+  GIVEN
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
+model TeamQuest {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  teamId String @db.Uuid
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  questId String @db.Uuid
+  quest   Quest  @relation(fields: [questId], references: [id])
+
+  status    TeamQuestStatus @default(HIDDEN)
+  photoPath String?
+
+  givenAt     DateTime?
+  submittedAt DateTime?
+  validatedAt DateTime?
+  rejectedAt  DateTime?
+
+  @@unique([teamId, questId])
+}

@@ -1,7 +1,19 @@
+enum Role {
+  ADMIN
+  NPC
+  PLAYER
+}
+
 model User {
   id String @id @default(uuid(7)) @db.Uuid
 
-  intraLogin String @unique
+  intraLogin String  @unique
+  role       Role    @default(PLAYER)
+  teamId     String? @db.Uuid
+  team       Team?   @relation(fields: [teamId], references: [id])
+  npc        Npc?
+
+  createdAt DateTime @default(now())
 
   @@index([intraLogin])
 }

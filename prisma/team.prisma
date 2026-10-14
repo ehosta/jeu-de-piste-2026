@@ -1,0 +1,10 @@
+model Team {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  name    String      @unique
+  qrToken String      @unique @default(uuid())
+  members User[]
+  quests  TeamQuest[]
+
+  createdAt DateTime @default(now())
+}
