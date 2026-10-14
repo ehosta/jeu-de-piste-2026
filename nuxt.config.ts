@@ -7,11 +7,17 @@ export default defineNuxtConfig({
     "@nuxt/icon/module",
     "@nuxt/image",
     "@nuxt/test-utils/module",
+    "nuxt-auth-utils",
   ],
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
   runtimeConfig: {
     databaseUrl: "",
     adminLogins: "",
+    oauth2: {
+      clientId: "",
+      clientSecret: "",
+      redirectUrl: "",
+    },
   },
 });
