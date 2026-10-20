@@ -19,5 +19,11 @@ export default defineNuxtConfig({
       clientSecret: "",
       redirectUrl: "",
     },
+    s3: {
+      endpoint: "",
+      accessKey: "",
+      secretKey: "",
+      bucket: "",
+    },
   },
 });
