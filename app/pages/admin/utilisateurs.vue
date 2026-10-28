@@ -4,6 +4,7 @@ import type { Role } from "~~/prisma/generated/enums";
 const { data } = await useAdminState();
 const { busy, apply, toast } = useAdminPatch();
 const { actAs } = useActAs();
+const canEdit = useCanEdit();
 const { t, formatDateTime } = useI18n();
 const route = useRoute();
 
@@ -120,7 +121,7 @@ function toggleAll(event: Event) {
             </div>
         </header>
 
-        <form class="card add" @submit.prevent="addUsers">
+        <form v-if="canEdit" class="card add" @submit.prevent="addUsers">
             <h2>{{ t("admin.users.addTitle") }}</h2>
             <label class="field">
                 <span>{{ t("admin.users.logins") }}</span>
@@ -173,7 +174,7 @@ function toggleAll(event: Event) {
             </select>
         </div>
 
-        <div v-if="selected.length" class="card bulk">
+        <div v-if="canEdit && selected.length" class="card bulk">
             <strong>{{ t("common.selected", { count: selected.length }) }}</strong>
             <div class="row">
                 <select v-model="bulkTeam" class="select select-small" :aria-label="t('admin.users.team')">
@@ -213,7 +214,7 @@ function toggleAll(event: Event) {
             <table class="table">
                 <thead>
                     <tr>
-                        <th>
+                        <th v-if="canEdit">
                             <input
                                 type="checkbox"
                                 class="checkbox"
@@ -235,7 +236,7 @@ function toggleAll(event: Event) {
                         :key="user.login"
                         :class="{ selected: selected.includes(user.login) }"
                     >
-                        <td>
+                        <td v-if="canEdit">
                             <input
                                 v-model="selected"
                                 type="checkbox"
@@ -254,7 +255,9 @@ function toggleAll(event: Event) {
                             </span>
                         </td>
                         <td>
+                            <span v-if="!canEdit">{{ t(`roles.${user.role}`) }}</span>
                             <select
+                                v-else
                                 class="select select-small"
                                 :value="user.role"
                                 :disabled="busy || user.login === data.me || user.owner"
@@ -268,7 +271,7 @@ function toggleAll(event: Event) {
                         </td>
                         <td>
                             <select
-                                v-if="user.role !== 'NPC'"
+                                v-if="canEdit && user.role !== 'NPC'"
                                 class="select select-small"
                                 :value="user.team ?? ''"
                                 :disabled="busy"
@@ -280,12 +283,13 @@ function toggleAll(event: Event) {
                                     {{ team.name }}
                                 </option>
                             </select>
+                            <span v-else-if="user.role !== 'NPC' && user.team">{{ user.team }}</span>
                             <span v-else class="muted">—</span>
                         </td>
                         <td class="muted">{{ formatDateTime(user.lastLoginAt) }}</td>
                         <td class="row-actions">
                             <button
-                                v-if="user.login !== data.me"
+                                v-if="canEdit && user.login !== data.me"
                                 class="btn btn-small btn-ghost"
                                 :title="t('admin.users.impersonateTitle', { login: user.login })"
                                 @click="impersonate(user.id)"
@@ -293,7 +297,7 @@ function toggleAll(event: Event) {
                                 {{ t("common.impersonate") }}
                             </button>
                             <button
-                                v-if="user.login !== data.me && !user.owner"
+                                v-if="canEdit && user.login !== data.me && !user.owner"
                                 class="btn btn-small btn-ghost-danger"
                                 :disabled="busy"
                                 @click="deleteUsers([user.login])"

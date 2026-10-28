@@ -1,7 +1,7 @@
-// Serves a quest photo to the team that took it, the NPCs giving the quest and
-// admins.
+// Serves a quest photo to the team that took it, the NPCs giving the quest,
+// admins and bocal.
 export default defineEventHandler(async (event) => {
-  const user = await requireRole(event, ["PLAYER", "NPC", "ADMIN"]);
+  const user = await requireRole(event, ["PLAYER", "NPC", "ADMIN", "BOCAL"]);
   const key = getRouterParam(event, "key");
 
   const teamQuest = isPhotoKey(key)
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const npc = user.role === "NPC" ? await findActorNpc(user) : null;
   const allowed =
     teamQuest &&
-    (user.isAdmin ||
+    (user.isStaff ||
       user.teamId === teamQuest.teamId ||
       teamQuest.quest.npcs.some((giver) => giver.id === npc?.id));
 

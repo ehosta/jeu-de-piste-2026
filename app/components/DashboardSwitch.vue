@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Lets an admin switch between the admin dashboard, their own team and NPC,
 // and the view of any team, NPC or account, from every page, in this session
-// only (see /api/admin/act-as).
+// only (see /api/admin/act-as). Bocal only get their own team and NPC.
+const { user: sessionUser } = useUserSession();
 const { actAs } = useActAs();
 const { t } = useI18n();
 const { data, refresh } = useFetch("/api/admin/views", {
@@ -41,7 +42,7 @@ async function switchTo(value: string) {
         @focus="refresh()"
         @change="switchTo(($event.target as HTMLSelectElement).value)"
     >
-        <option value="ADMIN">{{ t("header.adminSelf") }}</option>
+        <option value="ADMIN">{{ sessionUser?.isAdmin ? t("header.adminSelf") : t("header.bocalSelf") }}</option>
         <optgroup v-if="data?.me.team || data?.me.npc" :label="t('header.me')">
             <option v-if="data.me.team" :value="`PLAYER:${data.me.team.id}`">
                 {{ t("header.myTeam", { name: data.me.team.name }) }}

@@ -5,6 +5,7 @@ import type { ActAsTarget } from "~/composables/useActAs";
 const { data, refresh } = await useAdminState();
 const { busy, apply, toast } = useAdminPatch();
 const { actAs: switchTo } = useActAs();
+const canEdit = useCanEdit();
 const { t } = useI18n();
 
 const pauseMessage = ref(data.value?.game.pauseMessage ?? "");
@@ -170,14 +171,14 @@ async function actAs(target: ActAsTarget) {
                     </li>
                 </ol>
                 <button
-                    v-if="data.game.phase === 'WAITING'"
+                    v-if="data.game.phase === 'WAITING' && canEdit"
                     class="btn btn-primary"
                     :disabled="busy"
                     @click="setPhase('RUNNING')"
                 >
                     {{ t("admin.overview.game.start") }}
                 </button>
-                <template v-else>
+                <template v-else-if="data.game.phase === 'RUNNING' && canEdit">
                     <label class="field">
                         <span>{{ t("admin.overview.game.pauseMessage") }}</span>
                         <input
@@ -211,7 +212,7 @@ async function actAs(target: ActAsTarget) {
                 </template>
             </section>
 
-            <section class="card">
+            <section v-if="canEdit" class="card">
                 <h2>{{ t("admin.overview.actAs.title") }}</h2>
                 <p class="muted small">{{ t("admin.overview.actAs.text") }}</p>
                 <form
@@ -261,12 +262,12 @@ async function actAs(target: ActAsTarget) {
             </section>
         </div>
 
-        <AssignPanel />
+        <AssignPanel v-if="canEdit" />
 
         <section class="stack">
             <div class="card-header">
                 <h2>{{ t("admin.overview.progress.title") }}</h2>
-                <span class="muted small">{{ t("admin.overview.progress.hint") }}</span>
+                <span v-if="canEdit" class="muted small">{{ t("admin.overview.progress.hint") }}</span>
             </div>
             <p v-if="!data.teams.length || !quests.length" class="card empty">
                 {{ t("admin.overview.progress.empty") }}
@@ -295,7 +296,12 @@ async function actAs(target: ActAsTarget) {
                             </th>
                             <td v-for="quest in quests" :key="quest.key">
                                 <div class="cell">
+                                    <StatusBadge
+                                        v-if="!canEdit"
+                                        :status="team.progress[quest.key]?.status ?? 'HIDDEN'"
+                                    />
                                     <select
+                                        v-else
                                         class="select select-small status-select"
                                         :class="`tone-${QUEST_STATUS_TONES[team.progress[quest.key]?.status ?? 'HIDDEN']}`"
                                         :value="team.progress[quest.key]?.status ?? 'HIDDEN'"

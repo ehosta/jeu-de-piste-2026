@@ -37,6 +37,9 @@ enum TeamQuestStatus {
   SUBMITTED
   VALIDATED
   REJECTED
+  // An admin cancelled a validation the NPC shouldn't have given, as a
+  // penalty: no points, and the team can't send another photo (/admin/photos).
+  BLOCKED
 }
 
 model TeamQuest {
@@ -64,6 +67,7 @@ model TeamQuest {
   submittedAt DateTime?
   validatedAt DateTime?
   rejectedAt  DateTime?
+  blockedAt   DateTime?
 
   @@unique([teamId, questId])
 }

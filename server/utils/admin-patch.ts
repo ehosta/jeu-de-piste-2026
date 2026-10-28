@@ -45,7 +45,8 @@ function counter(): PatchCounter {
 // teams, users, team members, NPCs and their quests, quests, progress.
 // `actorLogin` is the admin sending it, who can't delete or demote themself,
 // and owners (NUXT_ADMIN_LOGINS) can't be deleted or demoted by anyone. Admins
-// always end up with a team and an NPC profile (server/utils/admins.ts).
+// and bocal always end up with a team and an NPC profile
+// (server/utils/admins.ts).
 export async function applyAdminPatch(
   patch: AdminPatch,
   options: { actorLogin: string; dryRun?: boolean },
@@ -146,8 +147,8 @@ class PatchRunner {
       await this.tx.quest.deleteMany({ where: { npcs: { none: {} } } })
     ).count;
 
-    // New admins, or admins whose team or NPC was just removed. The admins'
-    // team goes once nobody is left in it.
+    // New admins or bocal, or ones whose team or NPC was just removed. Their
+    // sandbox teams go once nobody is left in them.
     await ensureAllAdminVersions(this.tx);
     await this.tx.team.deleteMany({
       where: { sandbox: true, members: { none: {} } },
@@ -155,7 +156,8 @@ class PatchRunner {
     return this.report;
   }
 
-  // Admins are never wiped (their team and NPC come back at the end of the run).
+  // Admins and bocal are never wiped (their team and NPC come back at the end
+  // of the run).
   async wipe(target: WipeTarget) {
     switch (target) {
       case "progress":
@@ -277,7 +279,7 @@ class PatchRunner {
 
     let teamId: string | null | undefined;
 
-    // Admins can play in a team too.
+    // Admins and bocal can play in a team too.
     if (patch.team) {
       if (role === "NPC") {
         throw new PatchApplyError(`${path}.team`, "npcHasNoTeam", {
@@ -325,7 +327,8 @@ class PatchRunner {
       include: { npc: true },
     });
 
-    // The account stays, as a player without a team (an admin stays admin).
+    // The account stays, as a player without a team (admins and bocal keep
+    // their role).
     if ("$delete" in patch) {
       if (user?.npc) {
         await this.tx.npc.delete({ where: { id: user.npc.id } });
@@ -348,12 +351,12 @@ class PatchRunner {
       });
     }
 
-    // An admin keeps their role and team, and switches to their NPC from the
-    // dashboard switch.
+    // An admin or bocal keeps their role and team, and switches to their NPC
+    // from the dashboard switch.
     const { id: userId } = await this.tx.user.upsert({
       where: { intraLogin: patch.login },
       create: { intraLogin: patch.login, role: "NPC" },
-      update: user?.role === "ADMIN" ? {} : { role: "NPC", teamId: null },
+      update: isStaffRole(user?.role) ? {} : { role: "NPC", teamId: null },
     });
 
     const npc = user?.npc
@@ -473,6 +476,19 @@ class PatchRunner {
     }
 
     const where = { teamId_questId: { teamId: team.id, questId: quest.id } };
+    const existing = await this.tx.teamQuest.findUnique({ where });
+
+    // A team without a row is HIDDEN, without a photo.
+    if (
+      patch.expected &&
+      (patch.expected.status !== (existing?.status ?? "HIDDEN") ||
+        patch.expected.photoPath !== (existing?.photoPath ?? null))
+    ) {
+      throw new PatchApplyError(`${path}.expected`, "progressChanged", {
+        team: patch.team,
+        quest: patch.quest,
+      });
+    }
 
     // HIDDEN means the quest was never given: the row (and photo) goes away.
     if (patch.status === "HIDDEN") {
@@ -484,7 +500,6 @@ class PatchRunner {
     }
 
     const dateField = STATUS_DATE_FIELDS[patch.status];
-    const existing = await this.tx.teamQuest.findUnique({ where });
     // A status applied again (e.g. a reimported export) keeps its date: the
     // validation dates decide who validated a quest first.
     const data =
@@ -492,11 +507,32 @@ class PatchRunner {
         ? { status: patch.status }
         : { status: patch.status, [dateField]: new Date() };
 
-    await this.tx.teamQuest.upsert({
-      where,
-      create: { teamId: team.id, questId: quest.id, ...data },
-      update: data,
-    });
+    // With `expected`, the row must still be the one checked above (a team or
+    // NPC can change it while this transaction runs).
+    if (patch.expected && existing) {
+      const { count } = await this.tx.teamQuest.updateMany({
+        where: {
+          id: existing.id,
+          status: existing.status,
+          photoPath: existing.photoPath,
+        },
+        data,
+      });
+
+      if (!count) {
+        throw new PatchApplyError(`${path}.expected`, "progressChanged", {
+          team: patch.team,
+          quest: patch.quest,
+        });
+      }
+    } else {
+      await this.tx.teamQuest.upsert({
+        where,
+        create: { teamId: team.id, questId: quest.id, ...data },
+        update: data,
+      });
+    }
+
     this.report.progress[existing ? "updated" : "created"]++;
   }
 }

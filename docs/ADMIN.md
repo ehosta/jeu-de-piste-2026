@@ -1,12 +1,14 @@
 # Administration
 
-`/admin` est réservé aux comptes dont le rôle **réel** est `ADMIN` (dont les logins de `NUXT_ADMIN_LOGINS`).
+`/admin` est réservé aux comptes dont le rôle **réel** est `ADMIN` (dont les logins de `NUXT_ADMIN_LOGINS`) ou `BOCAL`.
+
+Le **bocal** (rôle `BOCAL`, donné par un admin depuis Utilisateurs ou un patch) voit tout ce que voient les admins, en **lecture seule** : vue d'ensemble, groupes, utilisateurs, PNJ et quêtes (réponses comprises), photos, classement et journal avec les groupes `sandbox`. Pas d'Import JSON ni de Maintenance, pas de QR codes des groupes, et `POST /api/admin/patch`, `/prefill` et `/export` lui répondent `403`. Comme un admin, il a une version joueur et une version PNJ, mais ne peut passer que sur les siennes : il ne joue ni n'incarne personne d'autre.
 
 Les logins de `NUXT_ADMIN_LOGINS` sont les **propriétaires** : ils sont toujours en base comme `ADMIN`, recréés au démarrage, à la connexion 42 et à chaque requête si une remise à zéro, un import ou une suppression les a retirés. Aucun patch ne peut les supprimer, les rétrograder ou les mettre dans un groupe.
 
-Chaque admin a **toujours une version joueur et une version PNJ** : il garde son rôle `ADMIN` et passe de l'une à l'autre depuis le sélecteur de vue.
+Chaque admin et chaque membre du bocal a **toujours une version joueur et une version PNJ** : il garde son rôle `ADMIN` ou `BOCAL` et passe de l'une à l'autre depuis le sélecteur de vue.
 
-- **Joueur** : son groupe. S'il n'en a pas, il rejoint le groupe « Admins », commun à tous les admins sans groupe et marqué `sandbox` : badge « Admin » dans Groupes, exclu des chiffres de la vue d'ensemble et de l'export. Un admin peut aussi être mis dans un vrai groupe.
+- **Joueur** : son groupe. S'il n'en a pas, il rejoint le groupe « Admins » (ou « Bocal » pour le bocal), commun à tous ceux de son rôle sans groupe et marqué `sandbox` : badge « Admin » dans Groupes, exclu des chiffres de la vue d'ensemble et de l'export. Il peut aussi être mis dans un vrai groupe.
 - **PNJ** : un profil « PNJ de <login> », à renommer et à remplir de quêtes depuis « PNJ & quêtes ».
 
 Les deux sont créés au démarrage, à la connexion, après chaque patch et à chaque requête s'ils manquent : une remise à zéro, une suppression ou un nouveau rôle admin les recrée tout de suite.
@@ -72,6 +74,19 @@ La partie a deux phases, changées depuis la vue d'ensemble (carte « État de l
 
 « Revenir en attente » fait rejoindre aux comptes bloqués les joueurs sans groupe.
 
+### Vérifier les photos
+
+La page **Photos** montre, quête par quête, toutes les photos envoyées : celles en attente d'un PNJ (en premier, encadrées) et celles validées, avec le groupe, qui l'a envoyée et quel PNJ l'a validée (les refusées en option). Le lien du menu affiche le nombre de photos à vérifier, et la page se met à jour toute seule.
+
+Valider ou refuser reste le travail des PNJ : la page n'agit que sur les photos **déjà validées** (donc verrouillées), quand un PNJ a laissé passer une mauvaise photo. Le groupe **perd les points** de la quête dans les deux cas :
+
+- **Annuler la validation** : la quête passe en `REJECTED`, comme un refus de PNJ, et le groupe peut envoyer une nouvelle photo ;
+- **Bloquer la quête** : la quête passe en `BLOCKED`, pour pénaliser : le groupe ne peut plus envoyer de photo et le PNJ ne peut plus rien faire. **Débloquer** la remet en `REJECTED`.
+
+Ces actions ne touchent que la photo affichée, au statut affiché (`expected` du patch) : si elle a changé entre-temps, rien n'est modifié et la page se met à jour. Le bocal voit la page sans les boutons.
+
+Le filtre **Validées par** ne montre que les photos validées par un PNJ, pour repérer celui qui valide n'importe quoi et annuler ses validations une par une.
+
 ## Classement et journal
 
 Tout le monde dans le jeu (joueurs, PNJ, admins) a deux onglets sous le header, en plus de sa page : **Classement** et **Journal**. Ils se mettent à jour tout seuls.
@@ -124,7 +139,7 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
   ],
 
   "users": [
-    // role : PLAYER, NPC ou ADMIN. team : nom d'un groupe, ou null pour l'en retirer.
+    // role : PLAYER, NPC, BOCAL ou ADMIN. team : nom d'un groupe, ou null pour l'en retirer.
     { "login": "ckent", "role": "PLAYER", "team": "Les Raclettes" },
     { "login": "pparker", "team": null },
     { "login": "parti", "$delete": true }
@@ -154,9 +169,16 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
   ],
 
   // status : HIDDEN (remet à zéro, supprime la photo), GIVEN, SUBMITTED,
-  // VALIDATED ou REJECTED.
+  // VALIDATED, REJECTED ou BLOCKED (validation annulée par un admin : pas de
+  // points, et le groupe ne peut plus envoyer de photo).
+  // expected (facultatif) : ne s'applique que si le groupe en est encore à ce
+  // statut avec cette photo (null : sans photo), sinon erreur progressChanged.
   "progress": [
-    { "team": "Les Raclettes", "quest": "cantine", "status": "GIVEN" }
+    { "team": "Les Raclettes", "quest": "cantine", "status": "GIVEN" },
+    {
+      "team": "Les Fuités", "quest": "cantine", "status": "REJECTED",
+      "expected": { "status": "VALIDATED", "photoPath": "…" }
+    }
   ]
 }
 ```
@@ -172,13 +194,13 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 | Cas | Effet |
 | --- | --- |
 | Utilisateur passé `NPC` | Il quitte son groupe |
-| `team` sur un PNJ | Erreur (joueurs et admins peuvent avoir un groupe) |
+| `team` sur un PNJ | Erreur (joueurs, bocal et admins peuvent avoir un groupe) |
 | Nouveau PNJ sans `name` | Erreur |
 | PNJ sur un compte joueur | Le compte devient `NPC` et quitte son groupe |
-| PNJ sur un compte admin | Le compte reste `ADMIN` (et garde son groupe), avec en plus un profil PNJ |
+| PNJ sur un compte admin ou bocal | Le compte garde son rôle (et son groupe), avec en plus un profil PNJ |
 | `npcs` avec `$delete` | Supprime le profil PNJ et ses quêtes non partagées, le compte redevient joueur sans groupe (un admin reste admin et récupère un PNJ vierge) |
 | Quête qui n'a plus aucun PNJ à la fin du patch | Supprimée, avec sa progression |
-| Admin sans groupe ou sans PNJ à la fin du patch | Il rejoint le groupe « Admins » et son PNJ est (re)créé |
+| Admin ou bocal sans groupe ou sans PNJ à la fin du patch | Il rejoint le groupe « Admins » (ou « Bocal ») et son PNJ est (re)créé |
 | Supprimer ou rétrograder un propriétaire (`NUXT_ADMIN_LOGINS`) | Erreur |
 | Nouvelle quête sans PNJ, `label` ou `answer` | Erreur |
 | Supprimer un groupe, une quête ou un PNJ | Supprime aussi la progression et les photos liées |
@@ -195,12 +217,12 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 
 | Route | Description |
 | --- | --- |
-| `GET /api/admin/state` | Tout ce qu'affichent les pages admin |
+| `GET /api/admin/state` | Tout ce qu'affichent les pages admin (admin et bocal) |
 | `POST /api/admin/patch` (`?dryRun=1`) | Applique un document (`400` avec `data.issues` : `[{ path, code, params }]`, traduits par l'interface : `patch.<code>` dans `app/i18n`) |
 | `POST /api/admin/prefill` | Réapplique `prefill.json`, sans sa partie `game` |
 | `GET /api/admin/export` | Les données actuelles, au format du document |
-| `POST /api/admin/act-as` `{ role, teamId?, npcId?, userId? }` | Jouer un joueur d'un groupe (`PLAYER`), un PNJ (`NPC`), incarner un compte (`USER`), ou redevenir admin (`ADMIN`) |
-| `GET /api/admin/views` | Ce que propose le sélecteur de vue : groupe et PNJ de l'admin, groupes, PNJ, comptes |
+| `POST /api/admin/act-as` `{ role, teamId?, npcId?, userId? }` | Jouer un joueur d'un groupe (`PLAYER`), un PNJ (`NPC`), incarner un compte (`USER`), ou redevenir admin (`ADMIN`). Le bocal : seulement son groupe et son PNJ |
+| `GET /api/admin/views` | Ce que propose le sélecteur de vue : groupe et PNJ de l'admin, groupes, PNJ, comptes (pour le bocal : son groupe et son PNJ) |
 | `GET /api/game` | `{ phase, paused, pauseMessage }`, pour tout le monde |
 | `GET /api/leaderboard` | Classement (`questCount`, groupes avec `rank`, `points`, `validated`, `mine`), pour tout le monde dans le jeu |
 | `GET /api/logs` | Validations, les plus récentes d'abord (300 max), pour tout le monde dans le jeu |

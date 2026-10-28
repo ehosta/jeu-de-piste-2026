@@ -5,11 +5,12 @@ const { actAs } = useActAs();
 const lock = useGameLock();
 const { t } = useI18n();
 
-// An admin can also play in a team and be an NPC: shortcuts to switch to them.
+// An admin or bocal can also play in a team and be an NPC: shortcuts to switch
+// to them.
 const { data: views } = useFetch("/api/admin/views", {
     key: "admin-views",
     server: false,
-    immediate: !!user.value?.isAdmin,
+    immediate: !!user.value?.isStaff,
 });
 
 // The album on the landing page: one page is restored, the others were erased.
@@ -92,7 +93,7 @@ const RESTORED_SLOT = 2;
         <section class="card center">
             <p class="eyebrow">{{ t("home.adminEyebrow") }}</p>
             <h1>{{ t("home.adminTitle", { login: user.intraLogin }) }}</h1>
-            <p class="muted">{{ t("home.adminText") }}</p>
+            <p class="muted">{{ user.isAdmin ? t("home.adminText") : t("home.bocalText") }}</p>
             <NuxtLink to="/admin" class="btn btn-primary btn-block">
                 {{ t("home.openDashboard") }}
             </NuxtLink>

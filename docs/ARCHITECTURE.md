@@ -55,7 +55,9 @@ Only NPCs can scan. A quest can be shared between several NPCs (`Quest.npcs`, ma
 | --- | --- | --- |
 | `HIDDEN` (no `TeamQuest` row yet) | `GIVE` | `GIVEN` |
 | `SUBMITTED` | `VALIDATE` / `REJECT` | `VALIDATED` (locked) / `REJECTED` |
-| `GIVEN`, `REJECTED`, `VALIDATED` | none | the NPC is shown an "oops" message |
+| `GIVEN`, `REJECTED`, `VALIDATED`, `BLOCKED` | none | the NPC is shown an "oops" message |
+
+`BLOCKED` is only set by an admin (/admin/photos), to cancel a validation an NPC shouldn't have given and keep the team from trying again.
 
 `POST /api/qrcode/action` checks the status again and only writes if it hasn't changed since (conditional `updateMany` / `createMany` with `skipDuplicates`), so a stale screen or a double tap returns `409` instead of e.g. rejecting a validated quest.
 
@@ -77,11 +79,11 @@ Any member of a team can send its photo once the quest is `GIVEN` or `REJECTED` 
 
 ## Admin
 
-`/admin` is reserved to users whose **real** role is `ADMIN` (the logins in `NUXT_ADMIN_LOGINS`). Pages, the JSON patch format and the routes are documented in [ADMIN.md](ADMIN.md) (in French).
+`/admin` is reserved to users whose **real** role is `ADMIN` (including the logins in `NUXT_ADMIN_LOGINS`) or `BOCAL`. Bocal members see the same pages read-only: routes that only show the game use `requireStaff`, everything that changes it `requireAdmin`. Pages, the JSON patch format and the routes are documented in [ADMIN.md](ADMIN.md) (in French).
 
 Every admin edit, from the dashboard buttons to a large JSON import, goes through `POST /api/admin/patch`: a document validated by `shared/utils/admin-patch.ts` (also used by the editor, to report errors as you type) and applied in a single transaction by `server/utils/admin-patch.ts`. Rows reference each other by readable keys (42 login, team name, quest `key`), and deletes cascade in the database (`onDelete: Cascade`). A quest left without any NPC at the end of a patch is deleted. Photo files left without a `TeamQuest` are removed afterwards (`deleteOrphanPhotos`).
 
-Impersonation is stored in the server-only part of the session (`secure.actingAs`), so it only applies to that browser: an admin can be an NPC on their phone and stay admin on their computer. Their real role in the database stays `ADMIN`. `getActor` (`server/utils/auth.ts`) resolves the effective role, team and NPC for `requireRole`, and `requireAdmin` ignores impersonation so the admin can always switch back.
+Impersonation is stored in the server-only part of the session (`secure.actingAs`), so it only applies to that browser: an admin can be an NPC on their phone and stay admin on their computer. Their real role in the database stays `ADMIN`. `getActor` (`server/utils/auth.ts`) resolves the effective role, team and NPC for `requireRole`, and `requireAdmin`/`requireStaff` ignore impersonation so the admin can always switch back. Bocal members can only act as their own player and NPC versions (`isOwnVersion`).
 
 ## Access and game state
 

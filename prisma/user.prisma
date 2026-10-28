@@ -1,5 +1,8 @@
 enum Role {
   ADMIN
+  // Staff watching the game (42's "bocal"): sees everything an admin sees, can
+  // play in a team and as an NPC like one, but changes nothing.
+  BOCAL
   NPC
   PLAYER
 }

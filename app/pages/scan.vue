@@ -44,7 +44,10 @@ const lock = useGameLock();
 
 // Why a scan has nothing to offer, depending on where the team stands.
 function idleMessage(status: TeamQuestStatus) {
-    return status === "GIVEN" || status === "REJECTED" || status === "VALIDATED"
+    return status === "GIVEN" ||
+        status === "REJECTED" ||
+        status === "VALIDATED" ||
+        status === "BLOCKED"
         ? t(`scan.idle.${status}`)
         : "";
 }

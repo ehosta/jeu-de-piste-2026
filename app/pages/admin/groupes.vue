@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { data } = await useAdminState();
 const { busy, apply } = useAdminPatch();
+const canEdit = useCanEdit();
 const { locale, t } = useI18n();
 
 const search = ref("");
@@ -154,7 +155,7 @@ function toggleAll(event: Event) {
                 <p class="eyebrow">{{ t("common.administration") }}</p>
                 <h1>{{ t("admin.teams.title") }}</h1>
             </div>
-            <form class="row create" @submit.prevent="createTeam">
+            <form v-if="canEdit" class="row create" @submit.prevent="createTeam">
                 <input
                     v-model="newTeam"
                     class="input grow"
@@ -167,7 +168,7 @@ function toggleAll(event: Event) {
             </form>
         </header>
 
-        <div class="grid tools">
+        <div v-if="canEdit" class="grid tools">
             <TeamGenerator />
             <AssignPanel />
         </div>
@@ -180,7 +181,7 @@ function toggleAll(event: Event) {
                 :placeholder="t('admin.teams.search')"
                 :aria-label="t('common.search')"
             >
-            <label class="row select-all">
+            <label v-if="canEdit" class="row select-all">
                 <input
                     type="checkbox"
                     class="checkbox"
@@ -190,7 +191,7 @@ function toggleAll(event: Event) {
                 {{ t("common.selectAll") }}
             </label>
             <button
-                v-if="selected.length"
+                v-if="canEdit && selected.length"
                 class="btn btn-danger"
                 :disabled="busy"
                 @click="deleteTeams(selected)"
@@ -198,7 +199,7 @@ function toggleAll(event: Event) {
                 {{ t("admin.teams.deleteSelection", { count: selected.length }) }}
             </button>
             <button
-                v-if="realTeams.length"
+                v-if="canEdit && realTeams.length"
                 class="btn btn-ghost"
                 :disabled="busy"
                 @click="rerollAllNames"
@@ -223,6 +224,7 @@ function toggleAll(event: Event) {
             >
                 <div class="team-header">
                     <input
+                        v-if="canEdit"
                         v-model="selected"
                         type="checkbox"
                         class="checkbox"
@@ -246,9 +248,15 @@ function toggleAll(event: Event) {
                         <button class="btn btn-small btn-primary" :disabled="busy">OK</button>
                     </form>
                     <h2 v-else class="grow team-name">
-                        <button class="name-button" :title="t('admin.teams.rename')" @click="startRename(team.name)">
+                        <button
+                            v-if="canEdit"
+                            class="name-button"
+                            :title="t('admin.teams.rename')"
+                            @click="startRename(team.name)"
+                        >
                             {{ team.name }}
                         </button>
+                        <template v-else>{{ team.name }}</template>
                         <span
                             v-if="team.sandbox"
                             class="badge badge-primary"
@@ -258,7 +266,7 @@ function toggleAll(event: Event) {
                         </span>
                     </h2>
                     <button
-                        v-if="!team.sandbox && renaming !== team.name"
+                        v-if="canEdit && !team.sandbox && renaming !== team.name"
                         class="btn btn-small btn-ghost reroll"
                         :title="t('admin.teams.reroll')"
                         :aria-label="t('admin.teams.reroll')"
@@ -276,6 +284,7 @@ function toggleAll(event: Event) {
                     <li v-for="login in team.members" :key="login" class="chip">
                         {{ login }}
                         <button
+                            v-if="canEdit"
                             class="chip-remove"
                             :aria-label="t('admin.teams.removeMember', { login })"
                             :disabled="busy"
@@ -287,7 +296,7 @@ function toggleAll(event: Event) {
                 </ul>
                 <p v-else class="muted small">{{ t("admin.teams.noMembers") }}</p>
 
-                <form class="row" @submit.prevent="addMembers(team.name)">
+                <form v-if="canEdit" class="row" @submit.prevent="addMembers(team.name)">
                     <input
                         v-model="newMembers[team.name]"
                         class="input grow"
@@ -301,7 +310,7 @@ function toggleAll(event: Event) {
                     <button class="btn" :disabled="busy">{{ t("common.add") }}</button>
                 </form>
 
-                <div class="row team-actions">
+                <div v-if="canEdit" class="row team-actions">
                     <a
                         :href="`/api/teams/${team.id}/qrcode`"
                         target="_blank"

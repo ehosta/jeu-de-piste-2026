@@ -232,7 +232,7 @@ async function submit() {
                     <dd>
                         <code>team</code>, <code>quest</code>,
                         <code>status</code> (HIDDEN, GIVEN, SUBMITTED,
-                        VALIDATED, REJECTED)
+                        VALIDATED, REJECTED, BLOCKED), <code>expected</code>
                     </dd>
                 </dl>
                 <p class="small muted">

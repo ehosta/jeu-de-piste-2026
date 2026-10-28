@@ -1,8 +1,9 @@
 // What the dashboard switch in the header offers: the admin view, the admin's
 // own team and NPC, a player of each team, each NPC and each account, with
-// the one this session currently shows.
+// the one this session currently shows. Bocal only get their own team and NPC.
 export default defineEventHandler(async (event) => {
-  const admin = await requireAdmin(event);
+  const admin = await requireStaff(event);
+  const others = admin.isAdmin ? undefined : { take: 0 };
 
   const [me, teams, npcs, users] = await Promise.all([
     prisma.user.findUniqueOrThrow({
@@ -10,14 +11,17 @@ export default defineEventHandler(async (event) => {
       include: { team: true, npc: true },
     }),
     prisma.team.findMany({
+      ...others,
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     prisma.npc.findMany({
+      ...others,
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     prisma.user.findMany({
+      ...others,
       where: { id: { not: admin.id } },
       orderBy: { intraLogin: "asc" },
       select: { id: true, intraLogin: true, role: true },

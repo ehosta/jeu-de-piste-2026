@@ -44,7 +44,7 @@ function stopActing() {
             <div class="header-right">
                 <nav v-if="user" class="header-user">
                     <NuxtLink
-                        v-if="user.isAdmin"
+                        v-if="user.isStaff"
                         to="/admin"
                         class="btn btn-small"
                         :class="route.path.startsWith('/admin') ? 'btn-primary' : 'btn-ghost'"
@@ -54,7 +54,7 @@ function stopActing() {
                         <span aria-hidden="true" class="dashboard-icon">⚙</span>
                         <span class="dashboard-label">{{ t("header.dashboard") }}</span>
                     </NuxtLink>
-                    <DashboardSwitch v-if="user.isAdmin" />
+                    <DashboardSwitch v-if="user.isStaff" />
                     <span class="login">{{ user.intraLogin }}</span>
                     <button class="btn btn-small btn-ghost" :aria-label="t('header.logout')" @click="logout">
                         <span aria-hidden="true" class="logout-icon">⏻</span>
@@ -107,7 +107,7 @@ function stopActing() {
             </span>
             <div class="row">
                 <NuxtLink
-                    v-if="user.actingAsLogin"
+                    v-if="user.actingAsLogin && user.isAdmin"
                     :to="{ path: '/admin/utilisateurs', query: { q: user.actingAsLogin } }"
                     class="btn btn-small btn-ghost"
                 >

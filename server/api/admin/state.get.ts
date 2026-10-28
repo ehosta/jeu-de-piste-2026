@@ -1,8 +1,9 @@
 // Everything the admin pages show: game state, accounts waiting to be added,
 // users, teams with their progress, NPCs with their quests, and every quest
-// with the NPCs giving it (a quest can be shared).
+// with the NPCs giving it (a quest can be shared). Bocal see it all too, in
+// read-only pages (`useCanEdit`).
 export default defineEventHandler(async (event) => {
-  const admin = await requireAdmin(event);
+  const admin = await requireStaff(event);
 
   const [game, waiting, users, teams, npcs, quests] = await Promise.all([
     getGame(),
@@ -22,6 +23,10 @@ export default defineEventHandler(async (event) => {
           select: {
             status: true,
             photoPath: true,
+            submittedAt: true,
+            validatedAt: true,
+            submittedBy: { select: { intraLogin: true } },
+            validatedBy: { select: { name: true } },
             quest: { select: { key: true } },
           },
         },
@@ -72,7 +77,7 @@ export default defineEventHandler(async (event) => {
       // In NUXT_ADMIN_LOGINS: always admin, can't be deleted.
       owner: isOwner(user.intraLogin),
       team: user.team?.name ?? null,
-      // Admins can also be an NPC.
+      // Admins and bocal can also be an NPC.
       npc: user.npc?.name ?? null,
       lastLoginAt: user.lastLoginAt,
     })),
@@ -80,13 +85,21 @@ export default defineEventHandler(async (event) => {
       id: team.id,
       name: team.name,
       createdAt: team.createdAt,
-      // An admin's player version, not a team of the game.
+      // An admin's or bocal's player version, not a team of the game.
       sandbox: team.sandbox,
       members: team.members.map((member) => member.intraLogin),
       progress: Object.fromEntries(
         team.quests.map((teamQuest) => [
           teamQuest.quest.key,
-          { status: teamQuest.status, photoPath: teamQuest.photoPath },
+          {
+            status: teamQuest.status,
+            photoPath: teamQuest.photoPath,
+            // For the photo review (/admin/photos).
+            submittedBy: teamQuest.submittedBy?.intraLogin ?? null,
+            submittedAt: teamQuest.submittedAt,
+            validatedBy: teamQuest.validatedBy?.name ?? null,
+            validatedAt: teamQuest.validatedAt,
+          },
         ]),
       ),
     })),

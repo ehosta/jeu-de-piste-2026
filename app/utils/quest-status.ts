@@ -8,8 +8,9 @@ export const QUEST_STATUS_TONES = {
   SUBMITTED: "warning",
   VALIDATED: "success",
   REJECTED: "danger",
+  BLOCKED: "danger",
 } as const satisfies Record<TeamQuestStatus, string>;
 
 export const QUEST_STATUSES = Object.keys(QUEST_STATUS_TONES) as TeamQuestStatus[];
 
-export const ROLES_ORDER: Role[] = ["ADMIN", "NPC", "PLAYER"];
+export const ROLES_ORDER: Role[] = ["ADMIN", "BOCAL", "NPC", "PLAYER"];

@@ -16,6 +16,7 @@ export default defineNitroPlugin(() => {
     if (!actor) {
       session.user.role = null;
       session.user.isAdmin = false;
+      session.user.isStaff = false;
       session.user.actingAs = null;
       session.user.actingAsLogin = null;
       return;
@@ -23,6 +24,7 @@ export default defineNitroPlugin(() => {
 
     session.user.role = actor.role;
     session.user.isAdmin = actor.isAdmin;
+    session.user.isStaff = actor.isStaff;
     const acting = await describeActingAs(actor.actingAs);
     session.user.actingAs = acting?.label ?? null;
     session.user.actingAsLogin = acting?.login ?? null;

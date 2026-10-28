@@ -23,7 +23,7 @@ export const WIPE_TARGETS = [
 
 export type WipeTarget = (typeof WIPE_TARGETS)[number];
 
-export const ROLES = ["ADMIN", "NPC", "PLAYER"] as const satisfies Role[];
+export const ROLES = ["ADMIN", "BOCAL", "NPC", "PLAYER"] as const satisfies Role[];
 
 export const GAME_PHASES = ["WAITING", "RUNNING"] as const satisfies GamePhase[];
 
@@ -33,6 +33,7 @@ export const TEAM_QUEST_STATUSES = [
   "SUBMITTED",
   "VALIDATED",
   "REJECTED",
+  "BLOCKED",
 ] as const satisfies TeamQuestStatus[];
 
 export interface GamePatch {
@@ -87,6 +88,10 @@ export interface ProgressPatch {
   team: string;
   quest: string;
   status: TeamQuestStatus;
+  // Applies only if the team is still at this status with this photo (e.g.
+  // what the admin was looking at when rejecting it), so a photo retaken or
+  // reviewed meanwhile isn't changed unseen.
+  expected?: { status: TeamQuestStatus; photoPath: string | null };
 }
 
 export interface AdminPatch {
@@ -133,7 +138,9 @@ export type PatchIssueCode =
   | "notAnNpc"
   | "newQuestFields"
   | "unknownQuest"
-  | "difficultyInvalid";
+  | "difficultyInvalid"
+  | "photoPathExpected"
+  | "progressChanged";
 
 export type PatchIssueParams = Record<string, string | number>;
 
@@ -493,7 +500,7 @@ class Parser {
   };
 
   progress = (raw: Raw, path: string): ProgressPatch | undefined => {
-    this.keys(raw, path, ["team", "quest", "status"]);
+    this.keys(raw, path, ["team", "quest", "status", "expected"]);
     const team = this.name(raw.team, `${path}.team`);
     const quest = this.questKey(raw.quest, `${path}.quest`);
     const status = this.oneOf(
@@ -503,8 +510,42 @@ class Parser {
       "unknownStatus",
     );
 
-    return team && quest && status ? { team, quest, status } : undefined;
+    const expected = this.expectedProgress(raw.expected, `${path}.expected`);
+
+    return team && quest && status && expected !== null
+      ? { team, quest, status, ...(expected && { expected }) }
+      : undefined;
   };
+
+  // undefined when absent, null when invalid.
+  expectedProgress(value: unknown, path: string) {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (!isObject(value)) {
+      this.issue(path, "objectExpected");
+      return null;
+    }
+
+    this.keys(value, path, ["status", "photoPath"]);
+    const status = this.oneOf(
+      value.status,
+      `${path}.status`,
+      TEAM_QUEST_STATUSES,
+      "unknownStatus",
+    );
+    const photoPath = value.photoPath;
+
+    if (photoPath !== null && (typeof photoPath !== "string" || !photoPath)) {
+      this.issue(`${path}.photoPath`, "photoPathExpected", {
+        value: describe(photoPath),
+      });
+      return null;
+    }
+
+    return status ? { status, photoPath } : null;
+  }
 
   game(raw: unknown): GamePatch | undefined {
     if (raw === undefined) {

@@ -9,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{ actAs: [npcId: string] }>();
 
 const { busy, apply } = useAdminPatch();
+const canEdit = useCanEdit();
 const { t } = useI18n();
 
 // Edits stay local until saved, and reset when the saved data changes.
@@ -164,7 +165,7 @@ function deleteNpc() {
                     {{ npc.login }} · {{ t("admin.npcs.quests", { count: npc.quests.length }) }}
                 </p>
             </div>
-            <div class="row">
+            <div v-if="canEdit" class="row">
                 <button class="btn btn-small" @click="emit('actAs', npc.id)">
                     {{ t("admin.npcs.play") }}
                 </button>
@@ -174,7 +175,7 @@ function deleteNpc() {
             </div>
         </div>
 
-        <form class="stack" @submit.prevent="save">
+        <form v-if="canEdit" class="stack" @submit.prevent="save">
             <label class="field">
                 <span>{{ t("admin.npcs.nameField") }}</span>
                 <input v-model="draft.name" class="input" maxlength="80" required>
@@ -187,6 +188,8 @@ function deleteNpc() {
                 {{ t("common.save") }}
             </button>
         </form>
+
+        <p v-else-if="npc.lore" class="lore">{{ npc.lore }}</p>
 
         <div class="stack quests">
             <h3>{{ t("admin.npcs.questsTitle") }}</h3>
@@ -240,7 +243,7 @@ function deleteNpc() {
                         </p>
                         <p class="muted small">{{ t("admin.npcs.answerShort", { answer: quest.answer }) }}</p>
                     </div>
-                    <div class="row quest-actions">
+                    <div v-if="canEdit" class="row quest-actions">
                         <button class="btn btn-small btn-ghost" @click="editingQuest = quest.key">
                             {{ t("common.edit") }}
                         </button>
@@ -255,7 +258,7 @@ function deleteNpc() {
                 </template>
             </div>
 
-            <details v-if="otherQuests.length" class="new-quest">
+            <details v-if="canEdit && otherQuests.length" class="new-quest">
                 <summary>{{ t("admin.npcs.shareQuest") }}</summary>
                 <form class="stack" @submit.prevent="shareQuest">
                     <p class="muted small">{{ t("admin.npcs.shareHint") }}</p>
@@ -274,7 +277,7 @@ function deleteNpc() {
                 </form>
             </details>
 
-            <details class="new-quest">
+            <details v-if="canEdit" class="new-quest">
                 <summary>{{ t("admin.npcs.addQuest") }}</summary>
                 <form class="stack" @submit.prevent="addQuest">
                     <label class="field">
@@ -301,6 +304,10 @@ function deleteNpc() {
 </template>
 
 <style scoped>
+.lore {
+    white-space: pre-line;
+}
+
 .save {
     align-self: flex-start;
 }

@@ -1,26 +1,43 @@
 <script setup lang="ts">
+// Bocal see every page but the ones only made to change the game.
+const ADMIN_ONLY = ["/admin/import", "/admin/maintenance"];
+
 definePageMeta({
-    middleware: () => {
+    middleware: (to) => {
         const { user } = useUserSession();
 
-        if (!user.value?.isAdmin) {
+        if (!user.value?.isStaff) {
             return navigateTo("/");
+        }
+
+        if (!user.value.isAdmin && ADMIN_ONLY.includes(to.path)) {
+            return navigateTo("/admin");
         }
     },
 });
 
 const { data } = await useAdminState();
 const { toast } = useAdminPatch();
+const canEdit = useCanEdit();
 const { t } = useI18n();
+
+// Photos waiting for an NPC.
+const toReview = computed(
+    () =>
+        data.value?.teams
+            .flatMap((team) => Object.values(team.progress))
+            .filter((progress) => progress.status === "SUBMITTED").length,
+);
 
 const links = computed(() => [
     { to: "/admin", label: t("admin.nav.overview"), count: data.value?.waiting.length },
     { to: "/admin/groupes", label: t("admin.nav.teams"), count: data.value?.teams.length },
     { to: "/admin/utilisateurs", label: t("admin.nav.users"), count: data.value?.users.length },
     { to: "/admin/pnj", label: t("admin.nav.npcs"), count: data.value?.npcs.length },
+    { to: "/admin/photos", label: t("admin.nav.photos"), count: toReview.value },
     { to: "/admin/import", label: t("admin.nav.import") },
     { to: "/admin/maintenance", label: t("admin.nav.maintenance") },
-]);
+].filter((link) => canEdit.value || !ADMIN_ONLY.includes(link.to)));
 
 // Success messages go away on their own, errors stay until dismissed.
 let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -50,6 +67,7 @@ watch(toast, (value) => {
         </nav>
 
         <div class="admin-content">
+            <p v-if="!canEdit" class="card readonly" role="note">{{ t("admin.readonly") }}</p>
             <NuxtPage />
         </div>
 
@@ -134,6 +152,11 @@ watch(toast, (value) => {
 .active .count {
     background: var(--gold);
     color: #1c1531;
+}
+
+.readonly {
+    margin-top: 1.5rem;
+    border-left: 4px solid var(--info);
 }
 
 /* Sidebar on large screens. */

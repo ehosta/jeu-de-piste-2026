@@ -11,6 +11,7 @@ const ACTIONS_BY_STATUS: Record<TeamQuestStatus, QuestAction[]> = {
   SUBMITTED: ["VALIDATE", "REJECT"],
   VALIDATED: [],
   REJECTED: [],
+  BLOCKED: [],
 };
 
 // Status a TeamQuest moves to once an action is applied, the timestamp
@@ -33,6 +34,7 @@ export const STATUS_DATE_FIELDS = {
   SUBMITTED: "submittedAt",
   VALIDATED: "validatedAt",
   REJECTED: "rejectedAt",
+  BLOCKED: "blockedAt",
 } as const satisfies Record<TeamQuestStatus, string | null>;
 
 export function getAllowedQuestActions(status: TeamQuestStatus): QuestAction[] {

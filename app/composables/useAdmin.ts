@@ -10,6 +10,12 @@ export type AdminState = NonNullable<
   Awaited<ReturnType<typeof useAdminState>>["data"]["value"]
 >;
 
+// Bocal see the admin pages without anything to change the game.
+export function useCanEdit() {
+  const { user } = useUserSession();
+  return computed(() => !!user.value?.isAdmin);
+}
+
 // The data every admin page shows, fetched once and shared between them.
 export function useAdminState() {
   return useFetch("/api/admin/state", { key: "admin-state" });

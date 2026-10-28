@@ -21,8 +21,10 @@ declare module "#auth-utils" {
     // Effective role: the admin's acting role while they impersonate one.
     // null for a 42 account no admin added to the game yet.
     role: Role | null;
-    // Set when the session is fetched (server/plugins/session.ts).
+    // Set when the session is fetched (server/plugins/session.ts). Staff (admins
+    // and bocal) see /admin, only admins change anything.
     isAdmin?: boolean;
+    isStaff?: boolean;
     actingAs?: ActingAsLabel | null;
     // Login of the account an admin is acting as, to manage it from the banner.
     actingAsLogin?: string | null;

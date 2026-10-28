@@ -2,6 +2,7 @@
 const { data } = await useAdminState();
 const { busy, apply, toast } = useAdminPatch();
 const { actAs: switchTo } = useActAs();
+const canEdit = useCanEdit();
 const { t } = useI18n();
 
 const search = ref("");
@@ -67,7 +68,7 @@ async function actAs(npcId: string) {
             >
         </header>
 
-        <details class="card" :open="!data.npcs.length">
+        <details v-if="canEdit" class="card" :open="!data.npcs.length">
             <summary><h2 class="summary-title">{{ t("admin.npcs.new") }}</h2></summary>
             <form class="stack" @submit.prevent="createNpc">
                 <p class="muted small">{{ t("admin.npcs.newHint") }}</p>
