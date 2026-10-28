@@ -1,0 +1,1072 @@
+/* Design tokens and shared building blocks. The look follows the lore: the
+   Campudex is an enchanted album from Faurtitou, a world whose people are
+   stuck in a single chunk. Pages are parchment framed like an old grimoire,
+   the UI text is pixelated like the cursed chunk, and NPCs speak in RPG
+   dialogue boxes. Light mode is parchment by day, dark mode an arcane night.
+   Pages work from phones (players showing their QR code, NPCs scanning) to
+   large screens (admins), so layouts stack by default and spread out from the
+   breakpoints below. Fonts are resolved by @nuxt/fonts from the families
+   named here. */
+:root {
+  --font-body: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Cinzel", Georgia, serif;
+  --font-pixel: "Pixelify Sans", var(--font-body);
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  --bg: #eadcbf;
+  --surface: #fbf4e2;
+  --surface-2: #f1e4c6;
+  --text: #2b1d14;
+  --muted: #76604b;
+  --border: #d2bb91;
+  --frame: #5a3c24;
+  --frame-soft: #c9ae80;
+  --gold: #956411;
+  --gold-soft: #f5e2b3;
+  --primary: #6a3ea1;
+  --primary-hover: #57318a;
+  --primary-deep: #3d2266;
+  --primary-soft: #ebdff6;
+  --primary-text: #fffaf0;
+  --accent: var(--gold);
+  --success: #3d7a36;
+  --success-soft: #e0eed4;
+  --danger: #a5302a;
+  --danger-soft: #f6dcd6;
+  --warning: #8f5a00;
+  --warning-soft: #f8e7c2;
+  --info: #2c5d88;
+  --info-soft: #dce8f3;
+
+  /* Always dark: the leather header and the dialogue boxes. */
+  --leather: #2c1d13;
+  --leather-text: #f3e6c8;
+  --leather-muted: #b9a283;
+  --dialogue-bg: #1c1531;
+  --dialogue-text: #f6ecd4;
+  /* The dialogue box is dark in both schemes: its gold stays bright. */
+  --dialogue-gold: #f0c766;
+
+  --grid-line: rgb(90 60 36 / 6%);
+  --shadow: 0 2px 0 rgb(90 60 36 / 18%), 0 10px 24px rgb(60 36 16 / 12%);
+  --radius: 6px;
+  --radius-sm: 4px;
+  --header-height: 3.75rem;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #110d1e;
+    --surface: #1c1730;
+    --surface-2: #261f3f;
+    --text: #f1e6cc;
+    --muted: #a99bc0;
+    --border: #3a3059;
+    --frame: #c9973b;
+    --frame-soft: #5b4a2c;
+    --gold: #e7b552;
+    --gold-soft: #3b2e14;
+    --primary: #b48cff;
+    --primary-hover: #c7a8ff;
+    --primary-deep: #5b3aa0;
+    --primary-soft: #2c2350;
+    --primary-text: #170f29;
+    --success: #7cc96f;
+    --success-soft: #1b3018;
+    --danger: #f07a6c;
+    --danger-soft: #3d1a1a;
+    --warning: #efb44e;
+    --warning-soft: #3a2b10;
+    --info: #7fb4ef;
+    --info-soft: #172a42;
+
+    --leather: #0b0814;
+    --dialogue-bg: #0d0a19;
+
+    --grid-line: rgb(180 140 255 / 5%);
+    --shadow: 0 2px 0 rgb(0 0 0 / 45%), 0 12px 28px rgb(0 0 0 / 35%);
+
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Parchment (or night sky) with the faint borders of the cursed chunk. */
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(ellipse at 50% 0%, transparent 40%, rgb(90 60 36 / 14%) 100%) fixed,
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(1px 1px at 12% 18%, #fff8 50%, transparent 51%) 0 0 / 320px 320px,
+      radial-gradient(1px 1px at 68% 42%, #fff6 50%, transparent 51%) 0 0 / 260px 260px,
+      radial-gradient(1.5px 1.5px at 35% 78%, #e7b55288 50%, transparent 51%) 0 0 / 380px 380px,
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 48px 48px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 48px 48px,
+      radial-gradient(ellipse at 50% -10%, #2a1f52 0%, transparent 60%) fixed,
+      var(--bg);
+  }
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.3rem);
+}
+
+h2 {
+  font-size: 1.2rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--primary);
+}
+
+code {
+  padding: 0.1em 0.35em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+:focus-visible {
+  outline: 2px dashed var(--gold);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--gold-soft);
+  color: var(--text);
+}
+
+/* Layout */
+
+.container {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: max(1rem, env(safe-area-inset-left))
+    max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 48rem) {
+  .container {
+    padding-inline: 2rem;
+  }
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-block: 1.25rem max(2.5rem, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 48rem) {
+  .page {
+    gap: 1.5rem;
+    padding-block: 2rem 4rem;
+  }
+}
+
+.narrow {
+  max-width: 36rem;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--frame-soft);
+}
+
+.page-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min, 17rem)), 1fr));
+  gap: 1rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap, 0.75rem);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.row > .grow {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* Surfaces: a framed parchment page, with a gold stud in each corner. */
+
+.card {
+  --stud: radial-gradient(circle, var(--gold) 0 2.5px, transparent 3px);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem;
+  background:
+    var(--stud) top 3px left 3px / 10px 10px no-repeat,
+    var(--stud) top 3px right 3px / 10px 10px no-repeat,
+    var(--stud) bottom 3px left 3px / 10px 10px no-repeat,
+    var(--stud) bottom 3px right 3px / 10px 10px no-repeat,
+    var(--surface);
+  border: 2px solid var(--frame);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 0 0 4px var(--surface),
+    inset 0 0 0 5px var(--frame-soft),
+    var(--shadow);
+}
+
+@media (min-width: 48rem) {
+  .card {
+    padding: 1.5rem;
+  }
+}
+
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.center {
+  align-items: center;
+  text-align: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.9rem;
+}
+
+.eyebrow {
+  color: var(--gold);
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "✦ ";
+}
+
+/* A flourish between two sections. */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  border: none;
+  color: var(--gold);
+}
+
+.ornament::before,
+.ornament::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--frame-soft));
+}
+
+.ornament::after {
+  background: linear-gradient(90deg, var(--frame-soft), transparent);
+}
+
+.notice {
+  padding: 0.85rem 1rem;
+  border: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.notice-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.notice-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.notice-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.empty {
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  text-align: center;
+}
+
+/* RPG dialogue box, for whatever a character says to the player. */
+.dialogue {
+  position: relative;
+  padding: 1.35rem 1.25rem 1.75rem;
+  border: 3px solid var(--dialogue-text);
+  border-radius: 8px;
+  outline: 3px solid var(--dialogue-bg);
+  background: var(--dialogue-bg);
+  color: var(--dialogue-text);
+  font-family: var(--font-pixel);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  text-align: left;
+  box-shadow: 0 6px 0 rgb(0 0 0 / 25%);
+}
+
+.dialogue::after {
+  content: "▼";
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.35rem;
+  color: var(--dialogue-gold);
+  font-size: 0.8rem;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.dialogue p + p {
+  margin-top: 0.5rem;
+}
+
+.dialogue strong {
+  color: var(--dialogue-gold);
+  font-weight: 600;
+}
+
+.dialogue-speaker {
+  position: absolute;
+  top: -1rem;
+  left: 1rem;
+  padding: 0.1rem 0.65rem;
+  border: 2px solid var(--dialogue-bg);
+  border-radius: 3px;
+  background: var(--gold);
+  color: #1c1531;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* Segmented progress bar, like an XP gauge. */
+.meter {
+  height: 1rem;
+  padding: 2px;
+  overflow: hidden;
+  border: 2px solid var(--frame);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.meter > span {
+  display: block;
+  width: var(--value, 0%);
+  height: 100%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 10px, rgb(0 0 0 / 22%) 10px 12px),
+    linear-gradient(var(--gold-soft), var(--gold) 60%);
+  transition: width 0.6s steps(12);
+}
+
+/* Buttons: chunky, pressed down like a physical key. */
+
+.btn {
+  --edge: var(--frame);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border: 2px solid var(--edge);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-pixel);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 3px 0 var(--edge);
+  transition:
+    background-color 0.15s,
+    filter 0.15s,
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+
+.btn:hover {
+  background-color: var(--surface-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--edge);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Large touch targets, usable one-handed. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 3.25rem;
+  }
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  --edge: var(--primary-deep);
+
+  /* The sheen is a translucent layer over the color, the same on hover: only
+     background-color changes, so it fades instead of flashing (a gradient
+     can't be transitioned, and dropping it leaves a transparent background
+     for the length of the transition). */
+  background-color: var(--primary);
+  background-image: linear-gradient(rgb(255 255 255 / 18%), transparent);
+  color: var(--primary-text);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 25%);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-success {
+  --edge: color-mix(in srgb, var(--success) 60%, #000);
+
+  background: var(--success);
+  color: var(--primary-text);
+}
+
+.btn-success:hover {
+  background: var(--success);
+  filter: brightness(1.08);
+}
+
+.btn-danger {
+  --edge: color-mix(in srgb, var(--danger) 60%, #000);
+
+  background: var(--danger);
+  color: var(--primary-text);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  filter: brightness(1.08);
+}
+
+.btn-ghost,
+.btn-ghost-danger {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  border-color: var(--frame-soft);
+}
+
+.btn-ghost-danger {
+  color: var(--danger);
+}
+
+.btn-ghost-danger:hover {
+  background: var(--danger-soft);
+}
+
+.btn-small {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 0 var(--edge);
+}
+
+.btn-small.btn-ghost,
+.btn-small.btn-ghost-danger {
+  box-shadow: none;
+}
+
+@media (pointer: coarse) {
+  .btn-small {
+    min-height: 2.5rem;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions > .btn {
+  flex: 1 1 8rem;
+}
+
+/* Forms */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.field > span,
+.label {
+  font-family: var(--font-pixel);
+  font-size: 0.9rem;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.8rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  box-shadow: inset 0 2px 0 rgb(0 0 0 / 6%);
+  transition:
+    border-color 0.15s,
+    outline-color 0.15s;
+}
+
+.input:hover:not(:disabled, :focus),
+.select:hover:not(:disabled, :focus),
+.textarea:hover:not(:disabled, :focus) {
+  border-color: var(--frame-soft);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--gold);
+  outline: 3px solid var(--gold-soft);
+  outline-offset: 0;
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* Browsers paint autofilled fields in their own colors. */
+.input:autofill,
+.input:-webkit-autofill {
+  box-shadow:
+    inset 0 0 0 100px var(--surface-2),
+    inset 0 2px 0 rgb(0 0 0 / 6%);
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+}
+
+/* Search fields: a magnifying glass, and a matching clear button. */
+.input[type="search"] {
+  padding-left: 2.25rem;
+  background-image:
+    radial-gradient(circle at 0.95rem 45%, transparent 0.3rem, var(--muted) 0.3rem 0.42rem, transparent 0.42rem),
+    linear-gradient(45deg, transparent 47%, var(--muted) 47% 60%, transparent 60%);
+  background-position:
+    0 0,
+    1.1rem calc(50% + 0.3rem);
+  background-size:
+    auto,
+    0.45rem 0.45rem;
+  background-repeat: no-repeat;
+}
+
+.input[type="search"]::-webkit-search-cancel-button {
+  width: 0.9rem;
+  height: 0.9rem;
+  background:
+    linear-gradient(45deg, transparent 42%, var(--muted) 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, var(--muted) 42% 58%, transparent 58%);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type="search"]::-webkit-search-cancel-button:hover {
+  background:
+    linear-gradient(45deg, transparent 42%, var(--danger) 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, var(--danger) 42% 58%, transparent 58%);
+}
+
+/* Selects: a chevron drawn in the text color, so it follows tinted selects
+   (status selects, header). Where the browser lets us style the dropdown too
+   (customizable select), it becomes a parchment panel. */
+.select {
+  padding-right: 2.25rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    right 1.05rem center,
+    right 0.75rem center;
+  background-size: 0.3rem 0.3rem;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.select-small {
+  width: auto;
+  min-height: 2.25rem;
+  padding-block: 0.25rem;
+  font-size: 0.9rem;
+}
+
+/* Native dropdowns (no customizable select): keep options readable. */
+.select option,
+.select optgroup {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+@supports (appearance: base-select) {
+  .select,
+  .select::picker(select) {
+    appearance: base-select;
+  }
+
+  /* The chevron stays the background one: an icon in the flow would be
+     pushed out of the box by a long label instead of the label being cut. */
+  .select::picker-icon {
+    display: none;
+  }
+
+  .select::picker(select) {
+    max-height: min(22rem, 60vh);
+    margin-block: 0.3rem;
+    padding: 0.3rem;
+    border: 2px solid var(--frame);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow:
+      inset 0 0 0 3px var(--surface),
+      inset 0 0 0 4px var(--frame-soft),
+      var(--shadow);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 400;
+    scrollbar-width: thin;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity 0.12s,
+      transform 0.12s,
+      overlay 0.12s allow-discrete,
+      display 0.12s allow-discrete;
+  }
+
+  .select:open::picker(select) {
+    opacity: 1;
+    transform: none;
+  }
+
+  @starting-style {
+    .select:open::picker(select) {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  .select option {
+    gap: 0.5rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .select option:hover,
+  .select option:focus-visible {
+    outline: none;
+    background: var(--gold-soft);
+  }
+
+  .select option:checked {
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .select option::checkmark {
+    content: "✦";
+    order: 1;
+    margin-left: auto;
+    color: var(--gold);
+  }
+
+  .select optgroup {
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .select optgroup + optgroup {
+    margin-top: 0.3rem;
+    padding-top: 0.3rem;
+    border-top: 1px dashed var(--border);
+  }
+
+  .select optgroup option {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+}
+
+.textarea {
+  min-height: 6rem;
+  resize: vertical;
+  scrollbar-width: thin;
+}
+
+/* Checkboxes: a framed square with a gold check. */
+.checkbox {
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: 0;
+  border: 2px solid var(--frame-soft);
+  border-radius: 3px;
+  background: var(--surface-2);
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.checkbox::before {
+  content: "";
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--primary-text);
+  clip-path: polygon(14% 44%, 0 59%, 39% 96%, 100% 22%, 85% 8%, 38% 66%);
+  transform: scale(0);
+  transition: transform 0.12s;
+}
+
+.checkbox:hover:not(:disabled) {
+  border-color: var(--frame);
+}
+
+.checkbox:checked,
+.checkbox:indeterminate {
+  border-color: var(--primary-deep);
+  background: var(--primary);
+}
+
+.checkbox:checked::before {
+  transform: scale(1);
+}
+
+.checkbox:indeterminate::before {
+  clip-path: inset(40% 10%);
+  transform: scale(1);
+}
+
+.checkbox:focus-visible {
+  outline: 2px dashed var(--gold);
+  outline-offset: 2px;
+}
+
+.checkbox:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Disclosures: a gold arrow instead of the browser's triangle. */
+summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "▶";
+  flex-shrink: 0;
+  color: var(--gold);
+  font-size: 0.7em;
+  transition: transform 0.15s;
+}
+
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Thin scrollbars in the theme's colors. */
+html,
+.table-wrap {
+  scrollbar-color: var(--frame-soft) transparent;
+}
+
+.table-wrap {
+  scrollbar-width: thin;
+}
+
+/* Tables: a ledger, scrolling sideways on small screens. */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 2px solid var(--frame);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px dashed var(--border);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.table th {
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--frame-soft);
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table tbody tr:hover td {
+  background: color-mix(in srgb, var(--gold-soft) 35%, transparent);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr.selected td {
+  background: var(--primary-soft);
+}
+
+/* Badges: little pixel tags. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.badge-primary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.badge-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.badge-info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.15rem 0.2rem 0.15rem 0.65rem;
+  border: 1.5px solid var(--frame-soft);
+  border-radius: 3px;
+  background: var(--surface-2);
+  font-size: 0.9rem;
+}
+
+.chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip-remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

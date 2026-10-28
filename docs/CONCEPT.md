@@ -4,7 +4,7 @@ Le but du jeu de piste de cette année est de prendre des photos des photos de d
 
 ## Lore principal
 
-Le monde de Faurtitou subit un terrible maléfice. Les individus présents depuis trop longtemps ont été ancrés dans un petit chunk, et ne peuvent désormais aller qu'aux endroits présents dans le Campudex. Problème ? Ils l'ont filé à Sir Claudius, qui n'était encore qu'apprenti et qui a commis des erreurs irréparables, détruisant toutes les images du Campudex (certains diront avoir entendu le sort "Hérème Hérèfe et Toiles !").
+Le monde de Faurtitou subit un terrible maléfice. Les individus présents depuis trop longtemps ont été ancrés dans un petit chunk, et ne peuvent désormais aller qu'aux endroits présents dans le Campudex. Problème ? Ils l'ont filé à Sir Claudius, qui n'était encore qu'apprenti et qui a commis des erreurs irréparables, détruisant toutes les images du Campudex (certains diront avoir entendu le sort "Hérème Hérèfe et Toiles Tirétiré Noprézairve Route !").
 
 Il incombe alors aux Sangs Nouveaux de reconstituer le Campudex afin de permettre à ces âmes condamnées de regagner leur mobilité.
 

@@ -1,20 +1,20 @@
+// Fills an empty database from prefill.json, then puts the owners and the
+// admins' player and NPC versions back (also done on every login and request,
+// see server/utils/auth.ts, this only makes them show up in /admin right after
+// a reset).
 export default defineNitroPlugin(async () => {
-  const logins = useRuntimeConfig()
-    .adminLogins.split(",")
-    .map((login) => login.trim());
-
-  for (const login of logins) {
-    await prisma.user.upsert({
-      where: {
-        intraLogin: login,
-      },
-      update: {
-        role: "ADMIN",
-      },
-      create: {
-        intraLogin: login,
-        role: "ADMIN",
-      },
-    });
+  if (await isDatabaseEmpty()) {
+    try {
+      await applyPrefill();
+      console.info("[prefill] empty database filled from prefill.json");
+    } catch (error) {
+      console.error("[prefill] prefill.json could not be applied:", error);
+    }
   }
+
+  for (const login of ownerLogins()) {
+    await ensureOwner(login);
+  }
+
+  await ensureAllAdminVersions();
 });

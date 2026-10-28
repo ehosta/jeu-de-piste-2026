@@ -6,5 +6,9 @@ model Team {
   members User[]
   quests  TeamQuest[]
 
+  // Created as the player version of an admin (server/utils/admins.ts), apart
+  // from the real teams of the game.
+  sandbox Boolean @default(false)
+
   createdAt DateTime @default(now())
 }

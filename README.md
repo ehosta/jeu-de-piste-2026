@@ -6,6 +6,8 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 
 - [Concept](docs/CONCEPT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Administration et format JSON](docs/ADMIN.md)
+- [Accès public (tunnel)](docs/TUNNEL.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Setup
@@ -43,6 +45,20 @@ yarn dev
 # bun
 bun run dev
 ```
+
+### Testing on a phone (same network)
+
+Browsers only give access to the camera (used by the NPC scanner) over HTTPS or on `localhost`. For a quick test from a phone on the same network without the tunnel, run:
+
+```bash
+pnpm dev:mobile
+```
+
+It serves the app over HTTPS on every network interface, with a self-signed certificate your phone will ask you to accept. Open `https://<your-computer-ip>:3000`, and set `NUXT_OAUTH2_REDIRECT_URL` (and the redirect URI of your 42 app) to `https://<your-computer-ip>:3000/auth/42` so the login redirects back to it.
+
+### Public access (campus wifi and 4G)
+
+`pnpm dev:tunnel` runs the dev server behind a Cloudflare Tunnel, so anyone can reach it at `https://campudex.elouann.dev` from any network, with a real HTTPS certificate. Setup, usage and troubleshooting: [docs/TUNNEL.md](docs/TUNNEL.md) (in French).
 
 ## Production
 

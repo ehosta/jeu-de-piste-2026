@@ -2,23 +2,33 @@ model Npc {
   id String @id @default(uuid(7)) @db.Uuid
 
   userId String @unique @db.Uuid
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name String
   lore String
 
-  quests Quest[]
+  // A quest can be shared: any of its NPCs can give and review it.
+  quests          Quest[]
+  givenQuests     TeamQuest[] @relation("GivenBy")
+  validatedQuests TeamQuest[] @relation("ValidatedBy")
 }
 
 model Quest {
   id String @id @default(uuid(7)) @db.Uuid
 
-  npcId String @db.Uuid
-  npc   Npc    @relation(fields: [npcId], references: [id])
+  // Human-readable identifier, used to reference the quest in admin imports.
+  key String @unique
+
+  // The NPCs who can give and review it (at least one: a quest left without
+  // NPC is deleted, see server/utils/admin-patch.ts).
+  npcs Npc[]
 
   label     String
   answer    String
-  teamQuest TeamQuest[]
+  // From 1 to 5, set by hand: the points a quest is worth (see
+  // shared/utils/scoring.ts).
+  difficulty Int         @default(1)
+  teamQuest  TeamQuest[]
 }
 
 enum TeamQuestStatus {
@@ -27,24 +37,37 @@ enum TeamQuestStatus {
   SUBMITTED
   VALIDATED
   REJECTED
+  // An admin cancelled a validation the NPC shouldn't have given, as a
+  // penalty: no points, and the team can't send another photo (/admin/photos).
+  BLOCKED
 }
 
 model TeamQuest {
   id String @id @default(uuid(7)) @db.Uuid
 
   teamId String @db.Uuid
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   questId String @db.Uuid
-  quest   Quest  @relation(fields: [questId], references: [id])
+  quest   Quest  @relation(fields: [questId], references: [id], onDelete: Cascade)
 
   status    TeamQuestStatus @default(HIDDEN)
   photoPath String?
+  // The team member who sent the current photo.
+  submittedById String? @db.Uuid
+  submittedBy   User?   @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  // Which of the quest's NPCs gave and validated it.
+  givenById     String? @db.Uuid
+  givenBy       Npc?    @relation("GivenBy", fields: [givenById], references: [id], onDelete: SetNull)
+  validatedById String? @db.Uuid
+  validatedBy   Npc?    @relation("ValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
 
   givenAt     DateTime?
   submittedAt DateTime?
   validatedAt DateTime?
   rejectedAt  DateTime?
+  blockedAt   DateTime?
 
   @@unique([teamId, questId])
 }
