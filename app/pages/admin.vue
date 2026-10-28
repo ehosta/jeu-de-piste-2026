@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { TeamQuestStatus } from "~~/prisma/generated/enums";
-
 definePageMeta({
     middleware: () => {
         const { user } = useUserSession();
@@ -11,327 +9,195 @@ definePageMeta({
     },
 });
 
-const { fetch: fetchSession } = useUserSession();
-const { data, refresh } = await useFetch("/api/admin/overview");
+const { data } = await useAdminState();
+const { toast } = useAdminPatch();
+const { t } = useI18n();
 
-const teamId = ref("");
-const npcId = ref("");
-const newLogins = ref<Record<string, string>>({});
-const busy = ref(false);
-const error = ref("");
+const links = computed(() => [
+    { to: "/admin", label: t("admin.nav.overview"), count: data.value?.waiting.length },
+    { to: "/admin/groupes", label: t("admin.nav.teams"), count: data.value?.teams.length },
+    { to: "/admin/utilisateurs", label: t("admin.nav.users"), count: data.value?.users.length },
+    { to: "/admin/pnj", label: t("admin.nav.npcs"), count: data.value?.npcs.length },
+    { to: "/admin/import", label: t("admin.nav.import") },
+    { to: "/admin/maintenance", label: t("admin.nav.maintenance") },
+]);
 
-const STATUS_LABELS: Record<TeamQuestStatus, string> = {
-    HIDDEN: "Pas donnée",
-    GIVEN: "Donnée",
-    SUBMITTED: "Photo envoyée",
-    VALIDATED: "Validée",
-    REJECTED: "Refusée",
-};
+// Success messages go away on their own, errors stay until dismissed.
+let timeout: ReturnType<typeof setTimeout> | undefined;
 
-const quests = computed(() =>
-    (data.value?.npcs ?? []).flatMap((npc) =>
-        npc.quests.map((quest) => ({ ...quest, npc: npc.name })),
-    ),
-);
+watch(toast, (value) => {
+    clearTimeout(timeout);
 
-watchEffect(() => {
-    teamId.value ||= data.value?.teams[0]?.id ?? "";
-    npcId.value ||= data.value?.npcs[0]?.id ?? "";
-});
-
-async function run(
-    action: () => Promise<unknown>,
-    messages: Record<number, string> = {},
-) {
-    busy.value = true;
-    error.value = "";
-
-    try {
-        await action();
-    } catch (err) {
-        const statusCode = (err as { statusCode?: number }).statusCode ?? 0;
-        error.value =
-            messages[statusCode] ?? "Quelque chose s'est mal passé, réessaie.";
-    } finally {
-        busy.value = false;
+    if (value?.tone === "success") {
+        timeout = setTimeout(() => (toast.value = null), 4000);
     }
-}
-
-function actAs(body: { role: "PLAYER" | "NPC" | "ADMIN"; teamId?: string; npcId?: string }) {
-    return run(async () => {
-        await $fetch("/api/admin/act-as", { method: "POST", body });
-        await fetchSession();
-        await navigateTo(body.role === "NPC" ? "/scan" : "/");
-    });
-}
-
-function createTestData() {
-    return run(async () => {
-        await $fetch("/api/admin/test-data", { method: "POST" });
-        await refresh();
-    });
-}
-
-function addMember(teamId: string) {
-    return run(
-        async () => {
-            await $fetch("/api/admin/team-members", {
-                method: "POST",
-                body: { teamId, intraLogin: newLogins.value[teamId] },
-            });
-            newLogins.value[teamId] = "";
-            await refresh();
-        },
-        {
-            400: "Ce login 42 n'est pas valide.",
-            409: "Ce login est admin ou PNJ, il ne peut pas être joueur.",
-        },
-    );
-}
-
-function removeMember(intraLogin: string) {
-    return run(async () => {
-        await $fetch("/api/admin/team-members", {
-            method: "DELETE",
-            body: { intraLogin },
-        });
-        await refresh();
-    });
-}
-
-function setStatus(teamId: string, questId: string, status: string) {
-    return run(async () => {
-        await $fetch("/api/admin/team-quest", {
-            method: "PUT",
-            body: { teamId, questId, status },
-        });
-        await refresh();
-    });
-}
+});
 </script>
 
 <template>
-    <main class="page">
-        <h1>Administration</h1>
-        <p v-if="error" class="error" role="alert">{{ error }}</p>
-
-        <section class="card">
-            <h2>Se mettre dans la peau de…</h2>
-            <p class="muted">
-                Seulement pour cette session : tu peux être PNJ sur ton
-                téléphone et rester admin sur ton ordinateur.
-            </p>
-
-            <form
-                v-if="data?.teams.length"
-                class="field"
-                @submit.prevent="actAs({ role: 'PLAYER', teamId })"
+    <div class="container admin">
+        <nav class="admin-nav" :aria-label="t('admin.nav.label')">
+            <NuxtLink
+                v-for="link in links"
+                :key="link.to"
+                :to="link.to"
+                class="admin-link"
+                exact-active-class="active"
             >
-                <label for="act-team">Un joueur du groupe</label>
-                <div class="row">
-                    <select id="act-team" v-model="teamId">
-                        <option
-                            v-for="team in data.teams"
-                            :key="team.id"
-                            :value="team.id"
-                        >
-                            {{ team.name }}
-                        </option>
-                    </select>
-                    <button class="btn btn-primary" :disabled="busy">Jouer</button>
-                </div>
-            </form>
+                {{ link.label }}
+                <span v-if="link.count" class="count">{{ link.count }}</span>
+            </NuxtLink>
+        </nav>
 
-            <form
-                v-if="data?.npcs.length"
-                class="field"
-                @submit.prevent="actAs({ role: 'NPC', npcId })"
-            >
-                <label for="act-npc">Le PNJ</label>
-                <div class="row">
-                    <select id="act-npc" v-model="npcId">
-                        <option
-                            v-for="npc in data.npcs"
-                            :key="npc.id"
-                            :value="npc.id"
-                        >
-                            {{ npc.name }}
-                        </option>
-                    </select>
-                    <button class="btn btn-primary" :disabled="busy">Jouer</button>
-                </div>
-            </form>
+        <div class="admin-content">
+            <NuxtPage />
+        </div>
 
-            <p v-if="!data?.teams.length || !data?.npcs.length" class="muted">
-                Il faut au moins un groupe et un PNJ. Crée des données de test
-                ci-dessous.
-            </p>
-        </section>
-
-        <section class="card">
-            <h2>Données de test</h2>
-            <p class="muted">
-                Crée le groupe « Les Testeurs » et un « PNJ de test » avec deux
-                quêtes. Ne fait rien s'ils existent déjà.
-            </p>
-            <button class="btn btn-block" :disabled="busy" @click="createTestData">
-                Créer les données de test
+        <div v-if="toast" class="toast" :class="`toast-${toast.tone}`" role="status">
+            <div class="stack toast-body">
+                <p>{{ toast.text }}</p>
+                <ul v-if="toast.issues" class="issues">
+                    <li v-for="(issue, index) in toast.issues" :key="index">
+                        <code v-if="issue.path">{{ issue.path }}</code>
+                        {{ describeIssue(issue, t) }}
+                    </li>
+                </ul>
+            </div>
+            <button class="chip-remove" :aria-label="t('admin.nav.close')" @click="toast = null">
+                ✕
             </button>
-        </section>
-
-        <section v-for="team in data?.teams" :key="team.id" class="card">
-            <div class="team-header">
-                <h2>{{ team.name }}</h2>
-                <a
-                    :href="`/api/teams/${team.id}/qrcode`"
-                    target="_blank"
-                    class="btn btn-small"
-                >
-                    QR code
-                </a>
-            </div>
-
-            <ul v-if="team.members.length" class="members">
-                <li v-for="login in team.members" :key="login" class="member">
-                    {{ login }}
-                    <button
-                        class="member-remove"
-                        :aria-label="`Retirer ${login} du groupe`"
-                        :disabled="busy"
-                        @click="removeMember(login)"
-                    >
-                        ✕
-                    </button>
-                </li>
-            </ul>
-            <p v-else class="muted">Aucun membre.</p>
-
-            <form class="row" @submit.prevent="addMember(team.id)">
-                <input
-                    v-model="newLogins[team.id]"
-                    type="text"
-                    placeholder="Login 42 d'un joueur"
-                    :aria-label="`Ajouter un joueur à ${team.name}`"
-                    autocapitalize="none"
-                    autocomplete="off"
-                    spellcheck="false"
-                    required
-                >
-                <button class="btn btn-primary" :disabled="busy">Ajouter</button>
-            </form>
-
-            <p v-if="!quests.length" class="muted">Aucune quête pour l'instant.</p>
-
-            <div v-for="quest in quests" :key="quest.id" class="field">
-                <label :for="`status-${team.id}-${quest.id}`">
-                    {{ quest.label }}
-                    <span class="muted">· {{ quest.npc }}</span>
-                </label>
-                <select
-                    :id="`status-${team.id}-${quest.id}`"
-                    :value="team.progress[quest.id]?.status ?? 'HIDDEN'"
-                    :disabled="busy"
-                    @change="
-                        setStatus(
-                            team.id,
-                            quest.id,
-                            ($event.target as HTMLSelectElement).value,
-                        )
-                    "
-                >
-                    <option
-                        v-for="(label, status) in STATUS_LABELS"
-                        :key="status"
-                        :value="status"
-                    >
-                        {{ label }}
-                    </option>
-                </select>
-                <a
-                    v-if="team.progress[quest.id]?.photoPath"
-                    :href="`/api/photos/${team.progress[quest.id]?.photoPath}`"
-                    target="_blank"
-                    class="photo-link"
-                >
-                    Voir la photo
-                </a>
-            </div>
-        </section>
-    </main>
+        </div>
+    </div>
 </template>
 
 <style scoped>
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+.admin {
+    max-width: 90rem;
 }
 
-.field label {
-    font-weight: 600;
+.admin-nav {
+    position: sticky;
+    top: calc(var(--header-height) + env(safe-area-inset-top));
+    z-index: 4;
+    display: flex;
+    gap: 0.25rem;
+    margin-inline: -1rem;
+    padding: 0.6rem 1rem;
+    overflow-x: auto;
+    background: var(--bg);
+    border-bottom: 2px solid var(--frame-soft);
+    scrollbar-width: none;
 }
 
-.row {
-    display: flex;
+.admin-link {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
     gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-family: var(--font-pixel);
+    text-decoration: none;
+    white-space: nowrap;
 }
 
-.row select,
-.row input {
+.admin-link:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.admin-link.active {
+    border-color: var(--frame);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 2px 0 var(--frame);
+}
+
+.admin-link.active::before {
+    content: "▶";
+    margin-right: -0.2rem;
+    color: var(--gold);
+    font-size: 0.7rem;
+}
+
+.count {
+    margin-left: auto;
+    padding: 0 0.45rem;
+    border-radius: 2px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.active .count {
+    background: var(--gold);
+    color: #1c1531;
+}
+
+/* Sidebar on large screens. */
+@media (min-width: 64rem) {
+    .admin {
+        display: grid;
+        grid-template-columns: 14rem minmax(0, 1fr);
+        gap: 2.5rem;
+    }
+
+    .admin-nav {
+        top: calc(var(--header-height) + 2rem);
+        align-self: start;
+        flex-direction: column;
+        margin: 2rem 0 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+    }
+}
+
+.toast {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    max-width: 30rem;
+    max-height: 60vh;
+    margin-left: auto;
+    padding: 0.85rem 0.85rem 0.85rem 1.1rem;
+    overflow-y: auto;
+    border: 2px solid var(--frame);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-weight: 500;
+}
+
+.toast-success {
+    border-left: 4px solid var(--success);
+}
+
+.toast-error {
+    border-left: 4px solid var(--danger);
+}
+
+.toast-body {
+    --gap: 0.4rem;
+
     flex: 1;
     min-width: 0;
 }
 
-select,
-input {
-    min-height: 3rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-}
-
-.members {
+.issues {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-direction: column;
+    gap: 0.3rem;
     margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.member {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.25rem 0.25rem 0.75rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-}
-
-.member-remove {
-    width: 2rem;
-    height: 2rem;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--muted);
-    font: inherit;
-    cursor: pointer;
-}
-
-.photo-link {
-    color: var(--primary);
-    font-weight: 600;
-}
-
-.team-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
+    padding-left: 1.1rem;
+    font-size: 0.875rem;
+    font-weight: 400;
 }
 </style>

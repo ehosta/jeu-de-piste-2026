@@ -1,4 +1,4 @@
-// Serves a quest photo to the team that took it, the NPC owning the quest and
+// Serves a quest photo to the team that took it, the NPCs giving the quest and
 // admins.
 export default defineEventHandler(async (event) => {
   const user = await requireRole(event, ["PLAYER", "NPC", "ADMIN"]);
@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const teamQuest = isPhotoKey(key)
     ? await prisma.teamQuest.findFirst({
         where: { photoPath: key },
-        include: { quest: { select: { npcId: true } } },
+        include: { quest: { select: { npcs: { select: { id: true } } } } },
       })
     : null;
 
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     teamQuest &&
     (user.isAdmin ||
       user.teamId === teamQuest.teamId ||
-      npc?.id === teamQuest.quest.npcId);
+      teamQuest.quest.npcs.some((giver) => giver.id === npc?.id));
 
   const photo = allowed && key ? await readPhoto(key) : null;
 

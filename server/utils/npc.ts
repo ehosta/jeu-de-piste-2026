@@ -2,14 +2,17 @@ import type { H3Event } from "h3";
 import type { Actor } from "./auth";
 
 // The NPC profile a user plays: their own, or the one an admin acts as.
-export function findActorNpc(user: Actor) {
-  return prisma.npc.findUnique({
-    where: user.npcId ? { id: user.npcId } : { userId: user.id },
-  });
+export async function findActorNpc(user: Actor) {
+  return user.npcId
+    ? await prisma.npc.findUnique({ where: { id: user.npcId } })
+    : null;
 }
 
+// Also refuses while the game is paused.
 export async function requireNpc(event: H3Event) {
-  const npc = await findActorNpc(await requireRole(event, ["NPC"]));
+  const user = await requireRole(event, ["NPC"]);
+  await requireGameRunning(user);
+  const npc = await findActorNpc(user);
 
   if (!npc) {
     throw createError({ statusCode: 403, statusMessage: "No NPC profile" });

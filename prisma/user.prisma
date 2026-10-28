@@ -10,10 +10,21 @@ model User {
   intraLogin String  @unique
   role       Role    @default(PLAYER)
   teamId     String? @db.Uuid
-  team       Team?   @relation(fields: [teamId], references: [id])
+  team       Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
   npc        Npc?
+  // Photos this user sent for their team.
+  submittedPhotos TeamQuest[]
 
-  createdAt DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  // Last 42 login, to see who already opened the game.
+  lastLoginAt DateTime?
 
   @@index([intraLogin])
+}
+
+// 42 accounts that logged in before an admin added them to the game (they wait
+// on /attente). Listed on /admin so they can be added in one click.
+model WaitingUser {
+  intraLogin String   @id
+  lastSeenAt DateTime @default(now())
 }

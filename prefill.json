@@ -1,0 +1,9 @@
+{
+  "game": { "phase": "WAITING", "paused": false, "pauseMessage": null },
+  "users": [
+    { "login": "ehosta", "role": "ADMIN" },
+    { "login": "fmaudhui", "role": "ADMIN" },
+    { "login": "pamuller", "role": "ADMIN" }
+  ],
+  "npcs": []
+}

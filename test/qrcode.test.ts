@@ -3,6 +3,7 @@ import { renderQrCodeSvg } from '../server/utils/qrcode'
 import { detectImageExtension, isPhotoKey } from '../server/utils/photo'
 import {
   canSubmitPhoto,
+  canWithdrawPhoto,
   getAllowedQuestActions,
   isQuestAction,
   QUEST_ACTION_RESULTS,
@@ -77,22 +78,35 @@ describe('parseIntraLogin', () => {
 
   it('rejects anything that is not a 42 login', () => {
     expect(parseIntraLogin('')).toBeNull()
-    expect(parseIntraLogin('_test-npc')).toBeNull()
+    expect(parseIntraLogin('jean_luc')).toBeNull()
     expect(parseIntraLogin('a b')).toBeNull()
     expect(parseIntraLogin(42)).toBeNull()
   })
 })
 
 describe('canSubmitPhoto', () => {
-  it('lets a team send or retake its photo until it is validated', () => {
+  it('lets a team send its photo once given the quest, or after a rejection', () => {
     expect(canSubmitPhoto('GIVEN')).toBe(true)
-    expect(canSubmitPhoto('SUBMITTED')).toBe(true)
     expect(canSubmitPhoto('REJECTED')).toBe(true)
+  })
+
+  it('allows a single photo under review at a time', () => {
+    expect(canSubmitPhoto('SUBMITTED')).toBe(false)
   })
 
   it('locks the photo once validated, and before the quest is given', () => {
     expect(canSubmitPhoto('VALIDATED')).toBe(false)
     expect(canSubmitPhoto('HIDDEN')).toBe(false)
+  })
+})
+
+describe('canWithdrawPhoto', () => {
+  it('only withdraws a photo waiting for the NPC', () => {
+    expect(canWithdrawPhoto('SUBMITTED')).toBe(true)
+
+    for (const status of ['HIDDEN', 'GIVEN', 'REJECTED', 'VALIDATED'] as const) {
+      expect(canWithdrawPhoto(status)).toBe(false)
+    }
   })
 })
 

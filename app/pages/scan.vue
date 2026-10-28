@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DetectedBarcode, EmittedError } from "vue-qrcode-reader";
 import zxingWasmUrl from "zxing-wasm/reader/zxing_reader.wasm?url";
+import type { TeamQuestStatus } from "~~/prisma/generated/enums";
 import type { QuestAction } from "~~/shared/utils/quest-actions";
 
 definePageMeta({
@@ -35,21 +36,18 @@ type ScanResult = Awaited<ReturnType<typeof scanToken>>;
 const state = ref<"scanning" | "loading" | "result" | "done">("scanning");
 const token = ref("");
 const result = ref<ScanResult | null>(null);
-const doneMessage = ref("");
+const doneAction = ref<QuestAction | null>(null);
 const error = ref("");
-
-const ACTION_MESSAGES: Record<QuestAction, string> = {
-    GIVE: "Quête donnée ! Le groupe peut partir à la recherche du lieu.",
-    VALIDATE: "Quête validée ! La photo est maintenant verrouillée.",
-    REJECT: "Photo refusée. Le groupe devra en reprendre une.",
-};
+const { t } = useI18n();
+// No scanning before the game starts or while it is paused.
+const lock = useGameLock();
 
 // Why a scan has nothing to offer, depending on where the team stands.
-const IDLE_MESSAGES: Record<string, string> = {
-    GIVEN: "Ce groupe a déjà ta quête, mais n'a pas encore envoyé sa photo.",
-    REJECTED: "Tu as refusé leur photo, ils doivent en envoyer une nouvelle.",
-    VALIDATED: "Ce groupe a déjà validé ta quête.",
-};
+function idleMessage(status: TeamQuestStatus) {
+    return status === "GIVEN" || status === "REJECTED" || status === "VALIDATED"
+        ? t(`scan.idle.${status}`)
+        : "";
+}
 
 function scanToken(value: string) {
     return $fetch("/api/qrcode/scan", {
@@ -59,19 +57,26 @@ function scanToken(value: string) {
 }
 
 function errorMessage(err: unknown) {
-    const statusCode = (err as { statusCode?: number }).statusCode;
+    const { statusCode, statusMessage } = err as {
+        statusCode?: number;
+        statusMessage?: string;
+    };
 
     switch (statusCode) {
         case 400:
-            return "Ce QR code ne vient pas du jeu.";
+            return t("scan.errors.notOurs");
         case 403:
-            return "Tu n'es plus donneur de quêtes, recharge la page.";
+            return t("scan.errors.notNpc");
         case 404:
-            return "Ce QR code ne correspond à aucun groupe.";
+            return t("scan.errors.unknown");
         case 409:
-            return "Ça a changé entre-temps (nouvelle photo ?), rescanne le groupe.";
+            return t("scan.errors.changed");
+        case 423:
+            return statusMessage === "Game not started"
+                ? t("scan.errors.notStarted")
+                : t("scan.errors.paused");
         default:
-            return "Quelque chose s'est mal passé, réessaie.";
+            return t("common.error");
     }
 }
 
@@ -101,7 +106,7 @@ async function applyAction(
 ) {
     if (
         action === "VALIDATE" &&
-        !window.confirm("Valider définitivement cette photo ?")
+        !window.confirm(t("scan.validateConfirm"))
     ) {
         return;
     }
@@ -119,7 +124,7 @@ async function applyAction(
                 photoPath: quest.photoPath,
             },
         });
-        doneMessage.value = ACTION_MESSAGES[action];
+        doneAction.value = action;
         state.value = "done";
     } catch (err) {
         error.value = errorMessage(err);
@@ -137,34 +142,40 @@ function scanAgain() {
 function onCameraError(err: EmittedError) {
     switch (err.name) {
         case "NotAllowedError":
-            error.value =
-                "Autorise l'accès à la caméra dans ton navigateur pour scanner.";
+            error.value = t("scan.errors.cameraDenied");
             break;
         case "NotFoundError":
         case "OverconstrainedError":
-            error.value = "Aucune caméra trouvée sur cet appareil.";
+            error.value = t("scan.errors.noCamera");
             break;
         case "InsecureContextError":
-            error.value = "La caméra ne fonctionne qu'en HTTPS.";
+            error.value = t("scan.errors.https");
             break;
         case "NotReadableError":
-            error.value =
-                "La caméra est déjà utilisée par une autre application.";
+            error.value = t("scan.errors.cameraBusy");
             break;
         default:
-            error.value = "Impossible de démarrer la caméra.";
+            error.value = t("scan.errors.camera");
     }
 }
 </script>
 
 <template>
-    <main class="page">
-        <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <main class="container page narrow">
+        <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
 
-        <template v-if="state === 'scanning' || state === 'loading'">
+        <section v-if="lock" class="card center">
+            <p class="eyebrow">{{ t("scan.eyebrow") }}</p>
+            <h1>{{ t(`scan.locked.${lock}Title`) }}</h1>
+            <p class="muted">{{ t(`scan.locked.${lock}Text`) }}</p>
+            <NuxtLink to="/" class="btn btn-block">{{ t("scan.locked.back") }}</NuxtLink>
+        </section>
+
+        <template v-else-if="state === 'scanning' || state === 'loading'">
             <section v-if="!result" class="card center">
-                <h1>Scanner un groupe</h1>
-                <p class="muted">Vise le QR code affiché sur leur téléphone.</p>
+                <p class="eyebrow">{{ t("scan.eyebrow") }}</p>
+                <h1>{{ t("scan.title") }}</h1>
+                <p class="muted">{{ t("scan.aim") }}</p>
                 <div class="scanner">
                     <ClientOnly>
                         <QrcodeStream
@@ -175,23 +186,23 @@ function onCameraError(err: EmittedError) {
                         />
                     </ClientOnly>
                     <p v-if="state === 'loading'" class="scanner-overlay">
-                        Chargement…
+                        {{ t("common.loading") }}
                     </p>
                 </div>
             </section>
-            <p v-else class="muted center">Chargement…</p>
+            <p v-else class="empty">{{ t("common.loading") }}</p>
         </template>
 
         <template v-else-if="state === 'result' && result">
             <section class="card">
-                <p class="muted">Groupe</p>
+                <p class="eyebrow">{{ t("scan.team") }}</p>
                 <h1>{{ result.team.name }}</h1>
                 <p class="muted">{{ result.team.members.join(" · ") }}</p>
             </section>
 
             <section v-if="!result.quests.length" class="card center">
-                <h2>Oups, désolé !</h2>
-                <p class="muted">Tu n'as aucune quête à donner.</p>
+                <h2>{{ t("scan.oops") }}</h2>
+                <p class="muted">{{ t("scan.noQuest") }}</p>
             </section>
 
             <section
@@ -199,68 +210,73 @@ function onCameraError(err: EmittedError) {
                 :key="quest.id"
                 class="card"
             >
-                <h2>{{ quest.label }}</h2>
+                <div class="card-header">
+                    <h2>{{ quest.label }}</h2>
+                    <StatusBadge :status="quest.status" />
+                </div>
+                <p v-if="quest.sharedWith.length" class="muted small">
+                    ⇄ {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
+                </p>
 
                 <template v-if="quest.actions.includes('GIVE')">
-                    <p>Donner cette quête à ce groupe ?</p>
+                    <p>{{ t("scan.give") }}</p>
                     <div class="actions">
-                        <button class="btn" @click="scanAgain">Non</button>
+                        <button class="btn" @click="scanAgain">{{ t("scan.no") }}</button>
                         <button
                             class="btn btn-primary"
                             @click="applyAction(quest, 'GIVE')"
                         >
-                            Oui
+                            {{ t("scan.yes") }}
                         </button>
                     </div>
                 </template>
 
                 <template v-else-if="quest.actions.includes('VALIDATE')">
-                    <p>
-                        Le groupe a envoyé sa photo. Est-ce le bon endroit ?
-                    </p>
+                    <p>{{ t("scan.review") }}</p>
                     <img
                         v-if="quest.photoPath"
                         :src="`/api/photos/${quest.photoPath}`"
-                        alt="Photo envoyée par le groupe"
+                        :alt="t('scan.photoAlt')"
                         class="photo"
                     >
                     <p class="muted">
-                        Réponse attendue : <strong>{{ quest.answer }}</strong>
+                        {{ t("scan.expected") }} <strong>{{ quest.answer }}</strong>
                     </p>
                     <div class="actions">
                         <button
                             class="btn btn-danger"
                             @click="applyAction(quest, 'REJECT')"
                         >
-                            Invalider
+                            {{ t("scan.reject") }}
                         </button>
                         <button
                             class="btn btn-success"
                             @click="applyAction(quest, 'VALIDATE')"
                         >
-                            Valider
+                            {{ t("scan.validate") }}
                         </button>
                     </div>
                 </template>
 
                 <div v-else class="oops">
-                    <p><strong>Oups, désolé !</strong></p>
-                    <p>{{ IDLE_MESSAGES[quest.status] }}</p>
+                    <p><strong>{{ t("scan.oops") }}</strong></p>
+                    <p>{{ idleMessage(quest.status) }}</p>
                 </div>
             </section>
 
             <button class="btn btn-block" @click="scanAgain">
-                Scanner un autre groupe
+                {{ t("scan.again") }}
             </button>
         </template>
 
         <template v-else-if="state === 'done'">
             <section class="card center">
-                <h1>C'est fait !</h1>
-                <p>{{ doneMessage }}</p>
+                <p class="eyebrow">{{ t("scan.doneEyebrow") }}</p>
+                <h1>{{ t("scan.done") }}</h1>
+                <p v-if="doneAction">{{ t(`scan.actions.${doneAction}`) }}</p>
             </section>
             <button class="btn btn-primary btn-block" @click="scanAgain">
-                Scanner un autre groupe
+                {{ t("scan.again") }}
             </button>
         </template>
     </main>
@@ -272,32 +288,58 @@ function onCameraError(err: EmittedError) {
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
+    border: 3px solid var(--frame);
+    border-radius: var(--radius-sm);
     background: #000000;
-    border-radius: var(--radius);
+}
+
+/* Gold corner marks around the viewfinder. */
+.scanner::after {
+    --c: #f3d27a;
+
+    content: "";
+    position: absolute;
+    inset: 12%;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--c), var(--c)) top left / 28px 4px no-repeat,
+        linear-gradient(var(--c), var(--c)) top left / 4px 28px no-repeat,
+        linear-gradient(var(--c), var(--c)) top right / 28px 4px no-repeat,
+        linear-gradient(var(--c), var(--c)) top right / 4px 28px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom left / 28px 4px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom left / 4px 28px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom right / 28px 4px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom right / 4px 28px no-repeat;
 }
 
 .scanner-overlay {
     position: absolute;
     inset: 0;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgb(0 0 0 / 60%);
     color: #ffffff;
-    font-weight: 600;
+    font-family: var(--font-pixel);
 }
 
 .photo {
     width: 100%;
     max-height: 60vh;
     object-fit: contain;
+    border: 3px solid var(--frame);
+    border-radius: var(--radius-sm);
     background: #000000;
-    border-radius: var(--radius);
 }
 
 .oops {
     padding: 0.75rem 1rem;
-    background: var(--warning-bg);
-    border-radius: var(--radius);
+    border: 2px solid currentColor;
+    border-radius: var(--radius-sm);
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-family: var(--font-pixel);
 }
 </style>

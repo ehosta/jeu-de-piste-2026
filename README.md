@@ -6,6 +6,7 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 
 - [Concept](docs/CONCEPT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Administration et format JSON](docs/ADMIN.md)
 - [Accès public (tunnel)](docs/TUNNEL.md)
 - [Contributing](CONTRIBUTING.md)
 

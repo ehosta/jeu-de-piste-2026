@@ -61,3 +61,31 @@ export async function deletePhoto(key: string | null) {
     await useStorage("photos").removeItem(key);
   }
 }
+
+// Keys embed their upload time: younger files may belong to an upload whose
+// TeamQuest isn't saved yet, so they are left alone.
+const ORPHAN_MIN_AGE_MS = 5 * 60 * 1000;
+
+// Deletes the photo files no TeamQuest points to any more, e.g. after an admin
+// deleted teams or quests (the rows go away through cascading deletes).
+export async function deleteOrphanPhotos() {
+  const storage = useStorage("photos");
+  const keys = (await storage.getKeys()).filter(isPhotoKey);
+  const used = new Set(
+    (
+      await prisma.teamQuest.findMany({
+        where: { photoPath: { in: keys } },
+        select: { photoPath: true },
+      })
+    ).map((teamQuest) => teamQuest.photoPath),
+  );
+  const now = Date.now();
+
+  for (const key of keys) {
+    const uploadedAt = Number(key.match(/-(\d+)\.\w+$/)?.[1]);
+
+    if (!used.has(key) && now - uploadedAt > ORPHAN_MIN_AGE_MS) {
+      await storage.removeItem(key);
+    }
+  }
+}

@@ -1,11 +1,13 @@
 import type { ActingAs } from "#shared/types/auth";
 
-// Lets an admin play as a player of a team or as an NPC, in this session only
-// (e.g. NPC on their phone, admin on their computer). `ADMIN` switches back.
+// Lets an admin play as a player of a team, as an NPC or as any account, in
+// this session only (e.g. NPC on their phone, admin on their computer).
+// `ADMIN` switches back.
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event);
+  const admin = await requireAdmin(event);
   const body = await readBody<
-    { role?: unknown; teamId?: unknown; npcId?: unknown } | undefined
+    | { role?: unknown; teamId?: unknown; npcId?: unknown; userId?: unknown }
+    | undefined
   >(event);
 
   let actingAs: ActingAs | undefined;
@@ -30,6 +32,17 @@ export default defineEventHandler(async (event) => {
     }
 
     actingAs = { role: "NPC", npcId: npc.id };
+  } else if (body?.role === "USER") {
+    const user = isUuid(body.userId)
+      ? await prisma.user.findUnique({ where: { id: body.userId } })
+      : null;
+
+    if (!user) {
+      throw createError({ statusCode: 404, statusMessage: "User not found" });
+    }
+
+    // Acting as oneself is just being oneself.
+    actingAs = user.id === admin.id ? undefined : { role: "USER", userId: user.id };
   } else if (body?.role !== "ADMIN") {
     throw createError({ statusCode: 400, statusMessage: "Invalid role" });
   }

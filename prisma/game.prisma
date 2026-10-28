@@ -1,0 +1,23 @@
+enum GamePhase {
+  // Before the game: 42 accounts that log in join as players without a team,
+  // and admins form the teams (by hand or randomly).
+  WAITING
+  // The game is on: unknown 42 accounts are kept out (WaitingUser) until an
+  // admin adds them to a team.
+  RUNNING
+}
+
+// Single row (id 1) holding the game-wide state. Created by the prefill
+// (prefill.json) on an empty database.
+model Game {
+  id Int @id @default(1)
+
+  phase GamePhase @default(WAITING)
+
+  // While paused, NPCs can't give or review quests and players can't send
+  // photos. Admins keep full access.
+  paused       Boolean @default(false)
+  pauseMessage String?
+
+  updatedAt DateTime @updatedAt
+}

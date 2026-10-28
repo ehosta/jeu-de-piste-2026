@@ -8,13 +8,24 @@ export default defineNitroPlugin(() => {
   sessionHooks.hook("fetch", async (session) => {
     const actor = await getActor(session);
 
-    if (!actor || !session.user) {
+    if (!session.user) {
+      return;
+    }
+
+    // Not (or no longer) in the game: see /attente.
+    if (!actor) {
+      session.user.role = null;
+      session.user.isAdmin = false;
+      session.user.actingAs = null;
+      session.user.actingAsLogin = null;
       return;
     }
 
     session.user.role = actor.role;
     session.user.isAdmin = actor.isAdmin;
-    session.user.actingAs = await describeActingAs(actor.actingAs);
+    const acting = await describeActingAs(actor.actingAs);
+    session.user.actingAs = acting?.label ?? null;
+    session.user.actingAsLogin = acting?.login ?? null;
   });
 });
 
@@ -23,12 +34,26 @@ async function describeActingAs(actingAs: ActingAs | undefined) {
     const team = await prisma.team.findUnique({
       where: { id: actingAs.teamId },
     });
-    return `Joueur · ${team?.name ?? "groupe supprimé"}`;
+    return { label: { kind: "player" as const, name: team?.name ?? null } };
   }
 
   if (actingAs?.role === "NPC") {
-    const npc = await prisma.npc.findUnique({ where: { id: actingAs.npcId } });
-    return `PNJ · ${npc?.name ?? "PNJ supprimé"}`;
+    const npc = await prisma.npc.findUnique({
+      where: { id: actingAs.npcId },
+      include: { user: { select: { intraLogin: true } } },
+    });
+    return {
+      label: { kind: "npc" as const, name: npc?.name ?? null },
+      login: npc?.user.intraLogin,
+    };
+  }
+
+  if (actingAs?.role === "USER") {
+    const user = await prisma.user.findUnique({ where: { id: actingAs.userId } });
+    return {
+      label: { kind: "account" as const, name: user?.intraLogin ?? null },
+      login: user?.intraLogin,
+    };
   }
 
   return null;
