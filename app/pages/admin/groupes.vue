@@ -204,6 +204,7 @@ function toggleAll(event: Event) {
                 :disabled="busy"
                 @click="rerollAllNames"
             >
+                <Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" />
                 {{ t("admin.teams.rerollAll") }}
             </button>
         </div>
@@ -273,7 +274,7 @@ function toggleAll(event: Event) {
                         :disabled="busy"
                         @click="rerollName(team.name)"
                     >
-                        🎲
+                        <Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" />
                     </button>
                     <span class="badge badge-success" :title="t('admin.teams.validated', { count: validatedCount(team) })">
                         {{ validatedCount(team) }}/{{ questCount }}
@@ -290,7 +291,7 @@ function toggleAll(event: Event) {
                             :disabled="busy"
                             @click="removeMember(login)"
                         >
-                            ✕
+                            <Icon name="pixelarticons:close" class="ico" aria-hidden="true" />
                         </button>
                     </li>
                 </ul>

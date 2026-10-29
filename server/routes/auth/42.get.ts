@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
     const state = crypto.randomUUID();
     setCookie(event, "oauth_state", state, {
       httpOnly: true,
+      secure: true,
       sameSite: "lax",
       maxAge: 600,
     });
@@ -24,7 +25,11 @@ export default defineEventHandler(async (event) => {
     );
   }
 
-  if (query.state !== getCookie(event, "oauth_state")) {
+  // Both must be there: without the cookie, a link carrying someone else's
+  // code (and no state) would log the victim into that account.
+  const expectedState = getCookie(event, "oauth_state");
+
+  if (!expectedState || query.state !== expectedState) {
     throw createError({ statusCode: 400, statusMessage: "Invalid state" });
   }
 
@@ -77,6 +82,9 @@ export default defineEventHandler(async (event) => {
       update: { lastSeenAt: new Date() },
     });
   }
+
+  // New players, accounts waiting to be placed, last logins.
+  publish({ to: STAFF_TOPIC, events: ["admin"] });
 
   await setUserSession(event, {
     user: { intraLogin: me.login, role: user?.role ?? null },

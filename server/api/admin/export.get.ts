@@ -37,7 +37,7 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
   ]);
 
   return {
-    game: { paused: game.paused, pauseMessage: game.pauseMessage },
+    game: { paused: game.paused, pauseMessage: game.pauseMessage, lore: game.lore },
     teams: teams.map((team) => ({ name: team.name })),
     users: users.map((user) =>
       user.role !== "NPC"

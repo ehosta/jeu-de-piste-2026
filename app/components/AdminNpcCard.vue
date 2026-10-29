@@ -213,7 +213,7 @@ function deleteNpc() {
                         <span>{{ t("admin.npcs.difficulty") }}</span>
                         <select v-model.number="questDrafts[quest.key]!.difficulty" class="select">
                             <option v-for="value in DIFFICULTIES" :key="value" :value="value">
-                                {{ stars(value) }}
+                                {{ t("admin.npcs.difficultyTitle", { count: value }) }}
                             </option>
                         </select>
                     </label>
@@ -231,11 +231,11 @@ function deleteNpc() {
                             class="stars"
                             :title="t('admin.npcs.difficultyTitle', { count: quest.difficulty })"
                         >
-                            {{ stars(quest.difficulty) }}
+                            <DifficultyStars :difficulty="quest.difficulty" />
                         </span>
                         <p>{{ quest.label }}</p>
                         <p v-if="quest.sharedWith.length" class="small shared">
-                            ⇄ {{
+                            <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{
                                 t("admin.npcs.sharedWith", {
                                     names: quest.sharedWith.map((other) => other.name).join(", "),
                                 })
@@ -292,7 +292,7 @@ function deleteNpc() {
                         <span>{{ t("admin.npcs.difficulty") }}</span>
                         <select v-model.number="newQuest.difficulty" class="select">
                             <option v-for="value in DIFFICULTIES" :key="value" :value="value">
-                                {{ stars(value) }}
+                                {{ t("admin.npcs.difficultyTitle", { count: value }) }}
                             </option>
                         </select>
                     </label>

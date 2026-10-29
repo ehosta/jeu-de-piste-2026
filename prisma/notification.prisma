@@ -1,0 +1,31 @@
+// Who a notification is shown to.
+enum NotificationAudience {
+  ALL
+  PLAYERS
+  NPCS
+  // The members of one team (`teamId`).
+  TEAM
+}
+
+// A message from the admins ("Rendez-vous dans 15 min en salle de
+// conférence !"), pushed live to the screens of the people it targets. It
+// shows until it expires or an admin takes it down (the row is deleted).
+model Notification {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  message  String
+  audience NotificationAudience @default(ALL)
+  teamId   String?              @db.Uuid
+  team     Team?                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  // Shown in front of the page until dismissed (and the phone vibrates),
+  // instead of a toast that goes away on its own.
+  urgent   Boolean              @default(false)
+
+  // 42 login of the admin who sent it.
+  sentBy    String
+  createdAt DateTime  @default(now())
+  // Null: until an admin takes it down.
+  expiresAt DateTime?
+
+  @@index([expiresAt])
+}

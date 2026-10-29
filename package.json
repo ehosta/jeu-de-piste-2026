@@ -5,10 +5,12 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "dev:reset": "node scripts/dev-reset.mjs",
     "dev:mobile": "nuxt dev --https --public",
     "dev:tunnel": "node scripts/dev-tunnel.mjs",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "prod": "node scripts/prod.mjs",
     "postinstall": "nuxt prepare && prisma generate",
     "test": "vitest",
     "test:watch": "vitest --watch",
@@ -19,6 +21,8 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@iconify-json/pixelarticons": "^1.2.10",
+    "@iconify-json/solar": "^1.2.13",
     "@nuxt/eslint": "1.17.0",
     "@nuxt/fonts": "1.0.1",
     "@nuxt/hints": "1.1.5",
@@ -28,7 +32,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "eslint": "^10.12.0",
-    "nuxt": "^4.6.1",
+    "nuxt": "^4.6.3",
     "nuxt-auth-utils": "0.5.31",
     "pg": "^8.23.1",
     "qrcode": "1.5.4",

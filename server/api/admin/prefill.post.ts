@@ -4,7 +4,12 @@ export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event);
 
   try {
-    return await applyPrefill({ actorLogin: admin.intraLogin, keepGame: true });
+    const report = await applyPrefill({
+      actorLogin: admin.intraLogin,
+      keepGame: true,
+    });
+    await publishEverything();
+    return report;
   } catch (error) {
     if (error instanceof PatchApplyError) {
       throw createError({

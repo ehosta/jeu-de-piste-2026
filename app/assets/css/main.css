@@ -53,6 +53,12 @@
   --radius-sm: 4px;
   --header-height: 3.75rem;
 
+  /* Pixelarticons drawn by CSS (::before / ::after), in the text's color:
+     `background: currentColor; mask: var(--glyph-…)`, see .glyph below. */
+  --glyph-sparkle: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M11 1h2v4h-2zm0 22h2v-4h-2zM9 5h2v4H9zm0 14h2v-4H9zm4-14h2v4h-2zm0 14h2v-4h-2zM5 9h4v2H5zm14 0h-4v2h4zM1 11h4v2H1zm22 0h-4v2h4zM5 13h4v2H5zm14 0h-4v2h4z'/></svg>");
+  --glyph-play: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z'/></svg>");
+  --glyph-chevron-down: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M13 16h-2v-2h2zm-2-2H9v-2h2zm4 0h-2v-2h2zm-6-2H7v-2h2zm8 0h-2v-2h2zM7 10H5V8h2zm12 0h-2V8h2z'/></svg>");
+
   color-scheme: light;
 }
 
@@ -185,6 +191,26 @@ code {
 ::selection {
   background: var(--gold-soft);
   color: var(--text);
+}
+
+/* Icons (<Icon class="ico">, see nuxt.config.ts), a bit larger than the
+   text and sitting on its line. */
+.ico {
+  flex-shrink: 0;
+  font-size: 1.25em;
+  vertical-align: -0.25em;
+}
+
+/* Ornaments drawn in CSS with a --glyph-* icon. */
+.eyebrow::before,
+.dialogue::after,
+summary::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask: var(--glyph) center / contain no-repeat;
 }
 
 /* Layout */
@@ -326,7 +352,10 @@ code {
 }
 
 .eyebrow::before {
-  content: "✦ ";
+  --glyph: var(--glyph-sparkle);
+
+  margin-right: 0.4em;
+  vertical-align: -0.15em;
 }
 
 /* A flourish between two sections. */
@@ -398,7 +427,8 @@ code {
 }
 
 .dialogue::after {
-  content: "▼";
+  --glyph: var(--glyph-chevron-down);
+
   position: absolute;
   right: 0.9rem;
   bottom: 0.35rem;
@@ -806,7 +836,11 @@ code {
   }
 
   .select option::checkmark {
-    content: "✦";
+    content: "";
+    width: 0.9em;
+    height: 0.9em;
+    background: currentColor;
+    mask: var(--glyph-sparkle) center / contain no-repeat;
     order: 1;
     margin-left: auto;
     color: var(--gold);
@@ -914,7 +948,8 @@ summary::-webkit-details-marker {
 }
 
 summary::before {
-  content: "▶";
+  --glyph: var(--glyph-play);
+
   flex-shrink: 0;
   color: var(--gold);
   font-size: 0.7em;

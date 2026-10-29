@@ -19,5 +19,9 @@ model Game {
   paused       Boolean @default(false)
   pauseMessage String?
 
+  // The story shown by the "Lore" button in the header, rewritten by admins
+  // from /admin. Null: the default one (app/i18n, `lore.default`).
+  lore String?
+
   updatedAt DateTime @updatedAt
 }

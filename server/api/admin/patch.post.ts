@@ -15,10 +15,16 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await applyAdminPatch(parsed.patch, {
+    const report = await applyAdminPatch(parsed.patch, {
       actorLogin: admin.intraLogin,
       dryRun,
     });
+
+    if (!dryRun) {
+      await publishEverything();
+    }
+
+    return report;
   } catch (error) {
     if (error instanceof PatchApplyError) {
       throw createError({

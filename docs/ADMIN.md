@@ -29,6 +29,8 @@ Pendant une incarnation, le bandeau propose **Gérer ce compte** (page Utilisate
 | Utilisateurs | Ajouter des logins en masse, changer rôle et groupe, suppression et actions groupées |
 | PNJ & quêtes | Créer et modifier les PNJ (nom, lore) et leurs quêtes, partager une quête existante avec un autre PNJ |
 | Import JSON | Éditer, simuler et appliquer un document JSON, exporter les données |
+| Messages | Envoyer un message sur l'écran des joueurs, des PNJ ou d'un groupe (« Rendez-vous dans 15 min en salle de conférence ! »), le retirer, voir combien d'appareils sont connectés en direct. Le bocal voit les messages affichés |
+| Lore | Réécrire l'histoire du jeu affichée par le bouton « Lore » du header (pour tout le monde, même sans être connecté), avec un aperçu. Elle change en direct sur tous les écrans. « Revenir au texte d'origine » remet celle de `app/i18n`, affichée dans la langue de chacun. Le bocal la lit seulement |
 | Maintenance | Réappliquer le pré-remplissage, remises à zéro et suppressions de masse |
 
 L'interface est en **français et en anglais** (sélecteur FR/EN du header, retenu dans un cookie ; par défaut, la langue du navigateur).
@@ -110,6 +112,20 @@ Sur la page du groupe :
 
 La pause ne concerne que la phase « en cours ». En pause, les PNJ ne peuvent plus scanner (ni donner, ni valider) et les joueurs ne peuvent plus envoyer de photo (`423`). Tout le monde voit un bandeau avec le message choisi. Un admin qui se met dans la peau d'un joueur ou d'un PNJ n'est pas bloqué, pour pouvoir tester pendant la pause. Avant le lancement, en revanche, personne ne peut scanner ni envoyer de photo, même un admin incarné ; l'accueil des PNJ et la page de scan affichent que la partie n'a pas commencé.
 
+## Messages
+
+**Tableau de bord → Messages** affiche un message sur les écrans, sans que personne ait à recharger la page :
+
+- **Pour** : tout le monde, les joueurs, les PNJ, ou un seul groupe. Un admin qui joue un joueur ou un PNJ reçoit les messages de ce rôle ; sinon, seulement ceux envoyés à tout le monde.
+- **Reste affiché** : 5 min à 2 h, ou jusqu'à ce que tu le retires. **Retirer** l'enlève tout de suite de tous les écrans.
+- **Urgent** : le message s'affiche en grand devant la page, le téléphone vibre, et il reste jusqu'à ce que la personne appuie sur « Compris ». Sinon, une bulle apparaît quelques secondes.
+
+Dans tous les cas, le message reste dans le menu 🔔 du header (avec le nombre de non lus) tant qu'il est affiché. Chacun peut le masquer sur son appareil. Quelqu'un qui se connecte après l'envoi le voit aussi (en grand s'il est urgent).
+
+C'est indépendant de la **pause** : la pause bloque le jeu et affiche un bandeau, un message ne bloque rien. Pour « Pause goûter, reprise à 16 h », combine les deux.
+
+Le compteur « appareils connectés en direct » permet de vérifier que le temps réel passe bien (voir [DEPLOY.md](DEPLOY.md)).
+
 ## Format JSON
 
 Toutes les modifications de l'admin, y compris les boutons des pages, passent par un même document, un peu comme le corps d'une énorme requête `PATCH` :
@@ -126,7 +142,9 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
   "wipe": ["progress", "quests", "npcs", "teams", "players"],
 
   // game : phase (WAITING ou RUNNING ; revenir à WAITING fait entrer les
-  // comptes bloqués comme joueurs sans groupe), paused, pauseMessage
+  // comptes bloqués comme joueurs sans groupe), paused, pauseMessage,
+  // lore (l'histoire du bouton « Lore », 10 000 caractères max ; null ou vide :
+  // le texte d'origine)
   "game": { "phase": "RUNNING", "paused": false, "pauseMessage": null },
 
   "teams": [
@@ -224,6 +242,7 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 | `POST /api/admin/act-as` `{ role, teamId?, npcId?, userId? }` | Jouer un joueur d'un groupe (`PLAYER`), un PNJ (`NPC`), incarner un compte (`USER`), ou redevenir admin (`ADMIN`). Le bocal : seulement son groupe et son PNJ |
 | `GET /api/admin/views` | Ce que propose le sélecteur de vue : groupe et PNJ de l'admin, groupes, PNJ, comptes (pour le bocal : son groupe et son PNJ) |
 | `GET /api/game` | `{ phase, paused, pauseMessage }`, pour tout le monde |
+| `GET/POST/DELETE /api/admin/notifications` | Messages affichés sur les écrans (voir [ARCHITECTURE.md](ARCHITECTURE.md#notifications)) |
 | `GET /api/leaderboard` | Classement (`questCount`, groupes avec `rank`, `points`, `validated`, `mine`), pour tout le monde dans le jeu |
 | `GET /api/logs` | Validations, les plus récentes d'abord (300 max), pour tout le monde dans le jeu |
 

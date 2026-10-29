@@ -177,7 +177,7 @@ function admit(login: string) {
                         :aria-label="t('admin.assign.otherName')"
                         @click="rerollName"
                     >
-                        🎲
+                        <Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" />
                     </button>
                     <button class="btn btn-primary" :disabled="busy || !selected.length">
                         {{ t("admin.assign.form") }}

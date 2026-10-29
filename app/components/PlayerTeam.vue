@@ -38,18 +38,13 @@ const allDone = computed(
     () => !!team.value?.questCount && validatedCount.value >= team.value.questCount,
 );
 
-// The NPC's decision shows up without reloading the page.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible" && !uploadingQuestId.value) {
-            refresh();
-        }
-    }, 10_000);
+// The NPC's decision, a teammate's photo and the points show up live. An
+// upload in progress refreshes once it is done.
+useRealtime(["team", "scores"], () => {
+    if (!uploadingQuestId.value) {
+        refresh();
+    }
 });
-
-onBeforeUnmount(() => clearInterval(poll));
 
 // Draws a new random name for the team.
 const renaming = ref(false);
@@ -184,7 +179,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
                             :aria-label="t('player.rerollName')"
                             @click="rerollName"
                         >
-                            🎲
+                            <Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" />
                         </button>
                     </div>
                     <ul class="party">
@@ -215,6 +210,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
                         </NuxtLink>
                     </div>
                     <button class="btn btn-primary" @click="showQrCode = true">
+                        <Icon name="pixelarticons:qr-code" class="ico" aria-hidden="true" />
                         {{ t("player.showQrCode") }}
                     </button>
                 </div>
@@ -248,7 +244,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
             </div>
 
             <template v-if="team.quests.length">
-                <div class="ornament" aria-hidden="true">✦</div>
+                <div class="ornament" aria-hidden="true"><Icon name="pixelarticons:sparkle" /></div>
                 <div class="grid quests">
                     <article
                         v-for="(quest, index) in team.quests"
@@ -262,7 +258,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
                                 class="stars"
                                 :title="t('admin.npcs.difficultyTitle', { count: quest.difficulty })"
                             >
-                                {{ stars(quest.difficulty) }}
+                                <DifficultyStars :difficulty="quest.difficulty" />
                             </span>
                             <StatusBadge :status="quest.status" />
                         </div>
@@ -309,7 +305,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
                             <template v-else-if="quest.photoPath">
                                 {{ t("player.retake") }}
                             </template>
-                            <template v-else>{{ t("player.take") }}</template>
+                            <template v-else><Icon name="solar:camera-bold-duotone" class="ico" aria-hidden="true" /> {{ t("player.take") }}</template>
                         </button>
                         <button
                             v-if="quest.canWithdrawPhoto"

@@ -81,6 +81,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await deletePhoto(teamQuest.photoPath);
+  await publishTeamQuestChange(teamQuest.teamId, teamQuest.questId);
 
   return { status: "SUBMITTED" as const, photoPath };
 });

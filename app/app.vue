@@ -9,18 +9,9 @@ const { actAs } = useActAs();
 const { data: game, refresh: refreshGame } = await useGame();
 const route = useRoute();
 
-// A pause decided from /admin shows up without reloading.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (user.value && document.visibilityState === "visible") {
-            refreshGame();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
+// A pause decided from /admin shows up live.
+useRealtime(["game"], refreshGame);
+const offline = useState("realtime-offline", () => false);
 
 async function logout() {
     await clear();
@@ -36,9 +27,7 @@ function stopActing() {
     <header class="header" :class="{ wide: route.path.startsWith('/admin') }">
         <div class="container header-inner">
             <NuxtLink to="/" class="brand">
-                <span class="brand-mark" aria-hidden="true">
-                    <span>C</span>
-                </span>
+                <img src="/favicon.svg" alt="" class="brand-mark" width="32" height="32">
                 <span class="brand-name">Campudex</span>
             </NuxtLink>
             <div class="header-right">
@@ -51,16 +40,18 @@ function stopActing() {
                         :title="t('header.dashboardTitle')"
                         :aria-label="t('header.dashboard')"
                     >
-                        <span aria-hidden="true" class="dashboard-icon">⚙</span>
+                        <Icon name="pixelarticons:settings-cog" class="ico dashboard-icon" aria-hidden="true" />
                         <span class="dashboard-label">{{ t("header.dashboard") }}</span>
                     </NuxtLink>
                     <DashboardSwitch v-if="user.isStaff" />
+                    <NotificationCenter />
                     <span class="login">{{ user.intraLogin }}</span>
                     <button class="btn btn-small btn-ghost" :aria-label="t('header.logout')" @click="logout">
-                        <span aria-hidden="true" class="logout-icon">⏻</span>
+                        <Icon name="pixelarticons:logout" class="ico logout-icon" aria-hidden="true" />
                         <span class="logout-label">{{ t("header.logout") }}</span>
                     </button>
                 </nav>
+                <LoreButton />
                 <div class="lang" role="group" :aria-label="t('header.language')">
                     <button
                         v-for="value in LOCALES"
@@ -93,9 +84,16 @@ function stopActing() {
         </div>
     </nav>
 
+    <div v-if="user && offline" class="banner banner-offline" role="status">
+        <div class="container banner-inner">
+            <span><Icon name="solar:cloud-cross-bold-duotone" class="ico" aria-hidden="true" /> {{ t("header.offline") }}</span>
+        </div>
+    </div>
+
     <div v-if="user?.actingAs" class="banner banner-acting">
         <div class="container banner-inner">
             <span>
+                <Icon name="solar:magic-stick-3-bold-duotone" class="ico" aria-hidden="true" />
                 {{ t("header.acting") }}
                 <strong>
                     {{
@@ -125,7 +123,7 @@ function stopActing() {
     >
         <div class="container banner-inner">
             <span>
-                <strong>{{ t("header.waitingTitle") }}</strong>
+                <strong><Icon name="solar:hourglass-bold-duotone" class="ico" aria-hidden="true" /> {{ t("header.waitingTitle") }}</strong>
                 {{ t("header.waitingText") }}
             </span>
         </div>
@@ -138,7 +136,7 @@ function stopActing() {
     >
         <div class="container banner-inner">
             <span>
-                <strong>{{ t("header.pausedTitle") }}</strong>
+                <strong><Icon name="solar:hourglass-line-bold-duotone" class="ico" aria-hidden="true" /> {{ t("header.pausedTitle") }}</strong>
                 {{ game.pauseMessage || t("header.pausedDefault") }}
             </span>
         </div>
@@ -193,24 +191,14 @@ function stopActing() {
     text-shadow: 0 2px 0 rgb(0 0 0 / 40%);
 }
 
-/* A gem set in the cover. */
+/* The Campudex camera (the favicon), glowing on the cover. Twice its 16 px
+   grid, pixels kept sharp. */
 .brand-mark {
-    display: grid;
-    place-items: center;
-    width: 1.9rem;
-    height: 1.9rem;
-    border: 2px solid var(--gold);
-    background: linear-gradient(135deg, #8d5fd6, #3d2266);
-    box-shadow: 0 0 12px rgb(180 140 255 / 45%);
-    transform: rotate(45deg);
-}
-
-.brand-mark span {
-    color: #fff4d6;
-    font-family: var(--font-pixel);
-    font-size: 1rem;
-    text-shadow: none;
-    transform: rotate(-45deg);
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 6px rgb(180 140 255 / 45%));
 }
 
 .header-right {
@@ -362,6 +350,11 @@ function stopActing() {
 .banner-acting {
     background: var(--primary-soft);
     color: var(--primary);
+}
+
+.banner-offline {
+    background: var(--danger-soft);
+    color: var(--danger);
 }
 
 .banner-waiting {

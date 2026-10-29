@@ -10,17 +10,8 @@ definePageMeta({
 const { t, ordinal, formatDateTime } = useI18n();
 const { data, refresh } = await useFetch("/api/logs");
 
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible") {
-            refresh();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
+// Moves live as NPCs validate quests.
+useRealtime(["scores"], refresh);
 </script>
 
 <template>
@@ -41,7 +32,9 @@ onBeforeUnmount(() => clearInterval(poll));
                 class="entry"
                 :class="{ first: entry.rank === 1 && !entry.sandbox, mine: entry.mine, sandbox: entry.sandbox }"
             >
-                <span class="dot" aria-hidden="true">{{ entry.rank === 1 && !entry.sandbox ? "✦" : "" }}</span>
+                <span class="dot" aria-hidden="true">
+                    <Icon v-if="entry.rank === 1 && !entry.sandbox" name="solar:cup-first-bold-duotone" />
+                </span>
                 <div class="card entry-card">
                     <div class="entry-top">
                         <time class="muted small">
@@ -57,7 +50,7 @@ onBeforeUnmount(() => clearInterval(poll));
                     </p>
                     <div class="row entry-meta">
                         <span class="stars" :title="t('admin.npcs.difficultyTitle', { count: entry.difficulty })">
-                            {{ stars(entry.difficulty) }}
+                            <DifficultyStars :difficulty="entry.difficulty" />
                         </span>
                         <span v-if="entry.sandbox" class="badge" :title="t('leaderboard.sandboxHint')">
                             {{ t("leaderboard.sandbox") }}

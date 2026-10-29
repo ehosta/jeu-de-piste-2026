@@ -1,5 +1,7 @@
 # Accès public (wifi du campus et 4G)
 
+> Pour la **production** sur un serveur qui a déjà un domaine et un certificat, le tunnel n'est pas utile : voir [DEPLOY.md](DEPLOY.md).
+
 Par défaut, l'app tourne sur ta machine et n'est joignable que depuis le même réseau. Pour que tout le monde puisse jouer, y compris en 4G, `pnpm dev:tunnel` lance le serveur de dev derrière un [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), sur **https://campudex.elouann.dev**.
 
 Les avantages par rapport au wifi seul :

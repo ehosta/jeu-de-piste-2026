@@ -41,6 +41,8 @@ export interface GamePatch {
   phase?: GamePhase;
   paused?: boolean;
   pauseMessage?: string | null;
+  // Null: back to the default story.
+  lore?: string | null;
 }
 
 export type TeamPatch =
@@ -161,6 +163,7 @@ export const QUEST_KEY_REGEX = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 // Team and NPC names.
 export const MAX_NAME_LENGTH = 80;
 const MAX_TEXT_LENGTH = 4000;
+export const MAX_LORE_LENGTH = 10_000;
 
 const TOP_LEVEL_KEYS = [
   "$schema",
@@ -557,7 +560,7 @@ class Parser {
       return undefined;
     }
 
-    this.keys(raw, "game", ["phase", "paused", "pauseMessage"]);
+    this.keys(raw, "game", ["phase", "paused", "pauseMessage", "lore"]);
     const game: GamePatch = {};
 
     if (raw.phase !== undefined) {
@@ -574,6 +577,12 @@ class Parser {
       game.pauseMessage =
         this.text(raw.pauseMessage, "game.pauseMessage", MAX_TEXT_LENGTH, true) ||
         null;
+    }
+
+    if (raw.lore === null) {
+      game.lore = null;
+    } else if (raw.lore !== undefined) {
+      game.lore = this.text(raw.lore, "game.lore", MAX_LORE_LENGTH, true) || null;
     }
 
     return game;

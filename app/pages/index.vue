@@ -34,6 +34,7 @@ const RESTORED_SLOT = 2;
                 </figure>
                 <p class="muted">{{ t("landing.call") }}</p>
                 <a href="/auth/42" class="btn btn-primary login-button">
+                    <Icon name="solar:login-3-bold-duotone" class="ico" aria-hidden="true" />
                     {{ t("landing.login") }}
                 </a>
             </div>
@@ -46,7 +47,8 @@ const RESTORED_SLOT = 2;
                         class="album-slot"
                         :class="{ restored: slot === RESTORED_SLOT }"
                     >
-                        <span>{{ slot === RESTORED_SLOT ? "✦" : "?" }}</span>
+                        <Icon v-if="slot === RESTORED_SLOT" name="solar:stars-bold-duotone" />
+                        <span v-else>?</span>
                     </div>
                 </div>
                 <div class="book-page">

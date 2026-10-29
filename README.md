@@ -7,7 +7,8 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 - [Concept](docs/CONCEPT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Administration et format JSON](docs/ADMIN.md)
-- [Accès public (tunnel)](docs/TUNNEL.md)
+- [Accès public en développement (tunnel)](docs/TUNNEL.md)
+- [Mise en production (serveur perso, HTTPS, WebSockets)](docs/DEPLOY.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Setup
@@ -45,6 +46,16 @@ yarn dev
 # bun
 bun run dev
 ```
+
+### Starting from a fresh game
+
+```bash
+pnpm dev:reset
+```
+
+Starts the database (Docker), **empties it** and deletes the quest photos, then runs `nuxt dev`, which fills the empty database from `prefill.json`. Extra arguments go to `nuxt dev` (`pnpm dev:reset --port 3001`). It refuses to run with `NODE_ENV=production` or on a database that isn't on `localhost`.
+
+Prisma refuses to empty a database when it detects an AI agent such as Claude Code: run it from your own terminal.
 
 ### Testing on a phone (same network)
 
@@ -94,4 +105,4 @@ yarn preview
 bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+`pnpm prod` starts the database, applies schema changes (never deleting data), builds and runs the app; `pnpm prod --no-start` stops after the build, for systemd. To put the game online on your own server (HTTPS, WebSockets, photos, no tunnel needed), follow [docs/DEPLOY.md](docs/DEPLOY.md) (in French).

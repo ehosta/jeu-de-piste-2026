@@ -8,7 +8,7 @@ import type { TeamQuestStatus } from "~~/prisma/generated/enums";
 // as a penalty (BLOCKED). Either way the team loses the quest's points.
 // Filtering by the NPC who validated shows whether one validates anything.
 type Photo = { team: string; status: TeamQuestStatus; photoPath: string | null };
-const { data, refresh } = await useAdminState();
+const { data } = await useAdminState();
 const { busy, apply } = useAdminPatch();
 const canEdit = useCanEdit();
 const { t, formatDateTime } = useI18n();
@@ -36,19 +36,6 @@ const validators = computed(() => {
 
     return [...counts].sort(([a], [b]) => a.localeCompare(b));
 });
-
-// Photos arrive during the game.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible" && !busy.value) {
-            refresh();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
 
 const quests = computed(() => {
     const query = search.value.trim().toLowerCase();
@@ -168,7 +155,7 @@ function correct(photo: Photo, quest: { key: string; label: string }, correction
             <div class="card-header">
                 <div>
                     <h2 class="quest-title">
-                        <span class="stars">{{ stars(quest.difficulty) }}</span>
+                        <span class="stars"><DifficultyStars :difficulty="quest.difficulty" /></span>
                         {{ quest.label }}
                     </h2>
                     <p class="muted small">{{ quest.npcs.join(" · ") }}</p>

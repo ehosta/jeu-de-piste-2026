@@ -6,9 +6,18 @@ services:
       POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB:  ${POSTGRES_DB:-jeu_de_piste}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Only reachable from this machine: Docker would otherwise open the port
+      # to the whole network, past the firewall (ufw).
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    # Lets `docker compose up --wait` (pnpm dev:reset, pnpm prod) wait until the
+    # database accepts connections.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
 volumes:
   db-data:

@@ -73,7 +73,7 @@ The NPC scanner lives at `/scan` (`app/pages/scan.vue`) and uses [`vue-qrcode-re
 
 Any member of a team can send its photo once the quest is `GIVEN` or `REJECTED` (`canSubmitPhoto` in `shared/utils/quest-actions.ts`), and who sent it is saved (`TeamQuest.submittedBy`). Only one photo is under review at a time: while `SUBMITTED`, nobody in the team can send another (two uploads at once: the first wins, the update is conditional on the status), but any member can withdraw it to retake it (`canWithdrawPhoto`). Once `VALIDATED`, it is locked.
 
-- **Client:** photos are resized (max 1600 px) and re-encoded as JPEG in the browser before upload (`app/utils/compress-photo.ts`), so a several-MB phone photo becomes ~300 KB, and HEIC turns into a format every browser displays. The player page polls every 10 s, so the NPC's decision shows up without reloading.
+- **Client:** photos are resized (max 1600 px) and re-encoded as JPEG in the browser before upload (`app/utils/compress-photo.ts`), so a several-MB phone photo becomes ~300 KB, and HEIC turns into a format every browser displays. The NPC's decision shows up live on the player page (see [Live updates](#live-updates)).
 - **Server:** the type is checked from the file's first bytes (JPEG, PNG or WebP, 10 MB max). Files go to the `photos` Nitro storage (`.data/photos`, git-ignored) under a new key on every upload, saved in `TeamQuest.photoPath`. The previous file is deleted, and so is the photo when an admin resets a quest to `HIDDEN`.
 - **Review:** the NPC sees the photo and the quest's expected `answer` when scanning. `VALIDATE`/`REJECT` send back the `photoPath` they saw: if the team withdrew or retook the photo in the meantime, the action returns `409` instead of validating a photo nobody looked at.
 
@@ -92,7 +92,7 @@ Users are matched by 42 login. The single `Game` row holds the phase and the pau
 - `WAITING` (before the game): logging in with an unknown 42 account creates a player without a team. Admins form the teams, by hand or with the generator (`shared/utils/team-generator.ts` and `shared/utils/team-names.ts`, applied through a patch).
 - `RUNNING`: logging in never creates a user. An unknown account gets a session with `role: null`, is sent to `/attente` by `app/middleware/registered.global.ts`, and is recorded in `WaitingUser` so admins can place it. Going back to `WAITING` turns those accounts into players.
 
-Before the game and while it is paused, `requireGameRunning` makes NPC actions and photo uploads answer `423` (`Game not started` or `Game paused`), and every page shows a banner (`GET /api/game`, polled by `app.vue`). Admins acting as a player or NPC are only let through during a pause, to test or fix things. The NPC home and /scan show why scanning is closed (`useGameLock`).
+Before the game and while it is paused, `requireGameRunning` makes NPC actions and photo uploads answer `423` (`Game not started` or `Game paused`), and every page shows a banner (`GET /api/game`, refreshed live by `app.vue`). Admins acting as a player or NPC are only let through during a pause, to test or fix things. The NPC home and /scan show why scanning is closed (`useGameLock`).
 
 An empty database (no `Game` row) is filled at startup from `prefill.json` (`server/plugins/init-db.ts`, `server/utils/prefill.ts`), which admins can apply again from Maintenance.
 
@@ -105,6 +105,57 @@ Points aren't stored: `computeScores()` (`server/utils/scores.ts`) recomputes th
 The interface is in French and English, with a small in-house helper rather than a module: `app/i18n/fr.ts` is the reference and `en.ts` is typed against it, so a missing or extra key fails the type check, and so does `t()` with an unknown key. `useI18n()` (`app/composables/useI18n.ts`) picks the language from the `lang` cookie (FR/EN switch in the header), or else the `Accept-Language` header / the browser's language. Messages use `{param}` placeholders and `"one | many"` plural forms; `<I18nText>` renders messages that contain markup.
 
 The server stays language-neutral: errors are status messages used as codes (`Photo pending`, `Game not started`…), admin patch issues are `{ path, code, params }` translated by the client, and the impersonation banner gets `{ kind, name }`.
+
+## Live updates
+
+Every logged-in browser keeps a WebSocket open on `/_ws` (`server/routes/_ws.ts`, Nitro's `experimental.websocket`), so phones follow the game without polling: a validation shows on the team's page, a photo on the NPC's scanner and in /admin, a pause on every screen, as soon as it happens.
+
+- **Server** (`server/utils/realtime.ts`): only the session cookie of the upgrade request identifies the account. Each socket is subscribed to topics derived from it like `requireRole` does (`all`, `role:<role>`, `team:<id>`, `npc:<id>`, `staff`, `login:<login>`). Routes that change the game call `publish()` with the events concerned (`shared/utils/realtime.ts`): only **which data changed**, never the data itself, so nothing leaks to a socket that shouldn't see it; each page refetches through its usual, access-checked route. After an admin patch or the prefill, `publishEverything()` resolves every socket's topics again (an account placed in a team, promoted to NPC…) and sends `session` to the ones that changed.
+- **Client** (`app/plugins/realtime.client.ts`): opens the socket while someone is logged in, and a new one when the session changes (login, logout, admin switching views). It pings every 25 s and treats a silent socket as dead (phones switching from wifi to 4G keep dead sockets open), reconnects with backoff, right away when the phone wakes up, and since events sent meanwhile are lost, makes every page refetch everything once reconnected. While disconnected it shows a banner after 5 s and still makes pages refetch every ~25 s. Pages subscribe with `useRealtime(events, refresh)`.
+- **One process**: subscriptions live in memory, so the app must run as a single instance (see [DEPLOY.md](DEPLOY.md)).
+
+| Event | Sent to | Refetched |
+| --- | --- | --- |
+| `game` | everyone | `GET /api/game` (banners, locks) |
+| `scores` | everyone | leaderboard, log, the team's points |
+| `team` | the team (all players for an NPC renamed) | `GET /api/teams/me` |
+| `npc` | the NPC (all NPCs for a renamed one) | `GET /api/npc/me` |
+| `scan` | the NPCs of the quest whose progress changed | the team on the scanner (`/scan`) |
+| `admin` | admins and bocal | `GET /api/admin/state` (every admin page) |
+| `session` | accounts whose role, team or NPC changed | the session (`/attente` then leaves on its own) |
+| `notifications` | everyone | `GET /api/notifications` |
+| `presence` | admins and bocal (debounced) | the connected count on /admin/notifications |
+
+## Notifications
+
+Admins push messages to the screens (/admin/notifications, `prisma/notification.prisma`): to everyone, the players, the NPCs or one team, for a while (5 min to 2 h) or until taken down, and optionally **urgent** (shown in front of the page until acknowledged, the phone vibrates) instead of a bubble that goes away on its own. Every screen has a bell in the header with the unread count and the messages still showing (`app/components/NotificationCenter.vue`); what was read or hidden is remembered per device (`localStorage`). Who sees what follows the effective role (`notificationsWhereFor` in `server/utils/notifications.ts`): an admin acting as a player sees the players' messages, accounts waiting on /attente only the ones sent to everyone.
+
+They are kept apart from the admin patch: sending or taking one down doesn't change the game, isn't exported, and taking one down deletes it.
+
+| Route | Roles | Description |
+| --- | --- | --- |
+| `GET /api/notifications` | logged in | The messages showing for this account, newest first |
+| `GET /api/admin/notifications` | `ADMIN`, `BOCAL` | Every message showing, and how many browsers are connected live |
+| `POST /api/admin/notifications` `{ message, audience, teamId?, urgent, duration }` | `ADMIN` | Sends one (`shared/utils/notifications.ts`); `400` with `data.issue` if invalid |
+| `DELETE /api/admin/notifications/:id` / `DELETE /api/admin/notifications` | `ADMIN` | Takes one / every message down from the screens |
+
+## Security
+
+What protects the app, beyond the role checks of each route (`requireRole`, `requireAdmin`, `requireStaff`):
+
+- **Session**: sealed cookie (`nuxt-auth-utils`, `NUXT_SESSION_PASSWORD`), `HttpOnly`, `Secure`, `SameSite=Lax`, valid 7 days. Roles are read from the database on every request, never trusted from the cookie.
+- **42 login** (`server/routes/auth/42.get.ts`): the OAuth `state` must match the `oauth_state` cookie, both present, so a link carrying someone else's code can't log a visitor into that account.
+- **Cross-origin requests** (`server/middleware/security.ts`, `isCrossOriginRequest` in `server/utils/security.ts`): requests that change something, and the WebSocket handshake, are refused (`403`) when `Sec-Fetch-Site` (or else `Origin`) shows they come from another origin, sibling subdomains included, which `SameSite=Lax` lets through.
+- **Body sizes**: 64 KB for JSON, 5 MB for an admin patch, 10 MB for a photo (checked by its route), and in production no body without a `Content-Length`; WebSocket messages are capped at 1 KB (`server/plugins/websocket.ts`).
+- **Headers**: `nosniff` (a photo can't be run as a page), framing by other sites forbidden, camera only for the app itself (`Permissions-Policy`). HSTS is set by nginx (see [DEPLOY.md](DEPLOY.md)).
+- **Content**: everything users type (team and NPC names, messages) is rendered as text by Vue, never as HTML (no `v-html`); photos are only served with the image type read from their first bytes; QR codes only carry a random token.
+- **Development**: DevTools are off when the dev server is public through the tunnel; the database only listens on `127.0.0.1`.
+
+## Icons
+
+No emoji or symbol characters in the interface (they look different on every phone, or not at all): flat two-tone icons from [Solar](https://icon-sets.iconify.design/solar/) (`*-bold-duotone`) stand in for emojis, and UI icons come from [Pixelarticons](https://icon-sets.iconify.design/pixelarticons/) (pixel art), both in the text's color, through `@nuxt/icon`: `<Icon name="solar:bell-bing-bold-duotone" class="ico" aria-hidden="true" />`. Difficulties use `<DifficultyStars :difficulty="3" />`.
+
+Both collections are installed (`@iconify-json/*`), never fetched from the Iconify API (`nuxt.config.ts`): the icons whose names are written literally in the code are bundled with the app; any other comes from our own server (`/api/_nuxt_icon`). Ornaments drawn in CSS (the eyebrow sparkle, the ▶ of `<summary>`, the ▼ of dialogue boxes) are Pixelarticons masks: `background: currentColor; mask: var(--glyph-…)` (`app/assets/css/main.css`).
 
 ## Names
 

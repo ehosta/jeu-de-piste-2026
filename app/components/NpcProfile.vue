@@ -9,6 +9,13 @@ const name = ref("");
 const saving = ref(false);
 const error = ref("");
 
+// Quests added or shared by an admin, another NPC renamed…
+useRealtime(["npc"], () => {
+    if (!editing.value) {
+        refresh();
+    }
+});
+
 function startEditing() {
     name.value = npc.value?.name ?? "";
     error.value = "";
@@ -51,7 +58,7 @@ async function save() {
         <div v-else class="row name-row">
             <h2>{{ npc.name }}</h2>
             <button class="btn btn-small btn-ghost" @click="startEditing">
-                ✎ {{ t("npcProfile.rename") }}
+                <Icon name="pixelarticons:edit" class="ico" aria-hidden="true" /> {{ t("npcProfile.rename") }}
             </button>
         </div>
         <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
@@ -61,11 +68,11 @@ async function save() {
         <p v-if="!npc.quests.length" class="muted small">{{ t("npcProfile.noQuest") }}</p>
         <ul v-else class="quests">
             <li v-for="quest in npc.quests" :key="quest.id" class="quest">
-                <span class="stars">{{ stars(quest.difficulty) }}</span>
+                <span class="stars"><DifficultyStars :difficulty="quest.difficulty" /></span>
                 <p>{{ quest.label }}</p>
                 <p class="muted small">{{ t("admin.npcs.answerShort", { answer: quest.answer }) }}</p>
                 <p v-if="quest.sharedWith.length" class="small shared">
-                    ⇄ {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
+                    <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
                 </p>
             </li>
         </ul>

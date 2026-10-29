@@ -6,6 +6,7 @@ export async function getGame() {
       phase: "WAITING" as const,
       paused: false,
       pauseMessage: null,
+      lore: null,
     }
   );
 }

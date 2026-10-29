@@ -5,6 +5,8 @@ model Team {
   qrToken String      @unique @default(uuid())
   members User[]
   quests  TeamQuest[]
+  // Admin messages sent to this team only.
+  notifications Notification[]
 
   // Created as the player version of an admin (server/utils/admins.ts), apart
   // from the real teams of the game.

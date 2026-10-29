@@ -10,18 +10,8 @@ definePageMeta({
 const { t, ordinal } = useI18n();
 const { data, refresh } = await useFetch("/api/leaderboard");
 
-// The ranking moves as NPCs validate quests.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible") {
-            refresh();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
+// Moves live as NPCs validate quests.
+useRealtime(["scores"], refresh);
 
 // The admins' sandbox teams (only shown to admins) stay off the podium.
 const podium = computed(() =>
@@ -91,7 +81,12 @@ const podium = computed(() =>
         <details class="card rules">
             <summary><h2>{{ t("leaderboard.rulesTitle") }}</h2></summary>
             <ul class="small">
-                <li>{{ t("leaderboard.rule1", { base: POINTS_PER_DIFFICULTY }) }}</li>
+                <li>
+                    <I18nText path="leaderboard.rule1">
+                        <template #base>{{ POINTS_PER_DIFFICULTY }}</template>
+                        <template #star><Icon name="solar:star-bold-duotone" class="ico" aria-hidden="true" /></template>
+                    </I18nText>
+                </li>
                 <li>
                     {{
                         t("leaderboard.rule2", {

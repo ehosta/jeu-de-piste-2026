@@ -63,6 +63,7 @@ export default defineEventHandler(async (event) => {
       phase: game.phase,
       paused: game.paused,
       pauseMessage: game.pauseMessage,
+      lore: game.lore,
     },
     waiting: waiting
       .filter((user) => !known.has(user.intraLogin))

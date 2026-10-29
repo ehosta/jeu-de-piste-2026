@@ -7,6 +7,20 @@ function issues(input: unknown) {
 }
 
 describe('parseAdminPatch', () => {
+  it('sets the game lore, or resets it to the default one', () => {
+    const set = parseAdminPatch({ game: { lore: '  Il était une fois Faurtitou.  ' } })
+    expect(set.ok && set.patch.game).toEqual({ lore: 'Il était une fois Faurtitou.' })
+
+    const reset = parseAdminPatch({ game: { lore: null } })
+    expect(reset.ok && reset.patch.game).toEqual({ lore: null })
+
+    // An empty text is the default story too.
+    const empty = parseAdminPatch({ game: { lore: '   ' } })
+    expect(empty.ok && empty.patch.game).toEqual({ lore: null })
+
+    expect(issues({ game: { lore: 'x'.repeat(10_001) } })[0]).toMatchObject({ path: 'game.lore', code: 'tooLong' })
+  })
+
   it('accepts a full document', () => {
     const parsed = parseAdminPatch({
       wipe: ['progress'],

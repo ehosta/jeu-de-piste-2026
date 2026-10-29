@@ -2,7 +2,7 @@
 import type { GamePhase, TeamQuestStatus } from "~~/prisma/generated/enums";
 import type { ActAsTarget } from "~/composables/useActAs";
 
-const { data, refresh } = await useAdminState();
+const { data } = await useAdminState();
 const { busy, apply, toast } = useAdminPatch();
 const { actAs: switchTo } = useActAs();
 const canEdit = useCanEdit();
@@ -16,19 +16,6 @@ const actUser = ref("");
 const otherUsers = computed(() =>
     (data.value?.users ?? []).filter((user) => user.login !== data.value?.me),
 );
-
-// The overview follows the game live.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible" && !busy.value) {
-            refresh();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
 
 const quests = computed(() => data.value?.quests ?? []);
 
@@ -176,6 +163,7 @@ async function actAs(target: ActAsTarget) {
                     :disabled="busy"
                     @click="setPhase('RUNNING')"
                 >
+                    <Icon name="solar:flag-bold-duotone" class="ico" aria-hidden="true" />
                     {{ t("admin.overview.game.start") }}
                 </button>
                 <template v-else-if="data.game.phase === 'RUNNING' && canEdit">
@@ -331,7 +319,7 @@ async function actAs(target: ActAsTarget) {
                                         class="photo-link"
                                         :title="t('admin.overview.progress.photo')"
                                     >
-                                        📷
+                                        <Icon name="solar:camera-bold-duotone" class="ico" aria-hidden="true" />
                                     </a>
                                 </div>
                             </td>
@@ -395,7 +383,13 @@ async function actAs(target: ActAsTarget) {
 }
 
 .phases li.current strong::before {
-    content: "▶ ";
+    content: "";
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.3em;
+    background: currentColor;
+    mask: var(--glyph-play) center / contain no-repeat;
     color: var(--gold);
 }
 

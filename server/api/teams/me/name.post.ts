@@ -29,5 +29,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: "Name taken" });
   }
 
+  // The name shows in the leaderboard, the log and on the NPCs' scanner.
+  publish(
+    { to: teamTopic(user.teamId), events: ["team"] },
+    { to: ALL_TOPIC, events: ["scores"] },
+    { to: ROLE_TOPICS.npcs, events: ["scan"] },
+    { to: STAFF_TOPIC, events: ["admin"] },
+  );
+
   return { name };
 });

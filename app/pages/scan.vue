@@ -135,6 +135,27 @@ async function applyAction(
     }
 }
 
+// The team in front of the NPC sent (or withdrew) its photo, another NPC
+// sharing the quest reviewed it…: the result updates without scanning again.
+useRealtime(["scan"], async () => {
+    if (state.value !== "result" || !token.value) {
+        return;
+    }
+
+    const scanned = token.value;
+
+    try {
+        const fresh = await scanToken(scanned);
+
+        // Unless the NPC moved on meanwhile.
+        if (state.value === "result" && token.value === scanned) {
+            result.value = fresh;
+        }
+    } catch {
+        // Keeps what is shown: acting on it reports the problem.
+    }
+});
+
 function scanAgain() {
     result.value = null;
     token.value = "";
@@ -218,7 +239,7 @@ function onCameraError(err: EmittedError) {
                     <StatusBadge :status="quest.status" />
                 </div>
                 <p v-if="quest.sharedWith.length" class="muted small">
-                    ⇄ {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
+                    <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
                 </p>
 
                 <template v-if="quest.actions.includes('GIVE')">

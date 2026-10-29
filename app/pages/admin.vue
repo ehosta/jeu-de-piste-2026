@@ -16,8 +16,16 @@ definePageMeta({
     },
 });
 
-const { data } = await useAdminState();
-const { toast } = useAdminPatch();
+const { data, refresh } = await useAdminState();
+const { busy, toast } = useAdminPatch();
+
+// Every admin page follows the game live: photos sent, validations, players
+// logging in… An edit in progress refreshes once it is applied.
+useRealtime(["admin"], () => {
+    if (!busy.value) {
+        refresh();
+    }
+});
 const canEdit = useCanEdit();
 const { t } = useI18n();
 
@@ -35,6 +43,8 @@ const links = computed(() => [
     { to: "/admin/utilisateurs", label: t("admin.nav.users"), count: data.value?.users.length },
     { to: "/admin/pnj", label: t("admin.nav.npcs"), count: data.value?.npcs.length },
     { to: "/admin/photos", label: t("admin.nav.photos"), count: toReview.value },
+    { to: "/admin/notifications", label: t("admin.nav.notifications") },
+    { to: "/admin/lore", label: t("admin.nav.lore") },
     { to: "/admin/import", label: t("admin.nav.import") },
     { to: "/admin/maintenance", label: t("admin.nav.maintenance") },
 ].filter((link) => canEdit.value || !ADMIN_ONLY.includes(link.to)));
@@ -82,7 +92,7 @@ watch(toast, (value) => {
                 </ul>
             </div>
             <button class="chip-remove" :aria-label="t('admin.nav.close')" @click="toast = null">
-                ✕
+                <Icon name="pixelarticons:close" class="ico" aria-hidden="true" />
             </button>
         </div>
     </div>
@@ -134,7 +144,13 @@ watch(toast, (value) => {
 }
 
 .admin-link.active::before {
-    content: "▶";
+    content: "";
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.3em;
+    background: currentColor;
+    mask: var(--glyph-play) center / contain no-repeat;
     margin-right: -0.2rem;
     color: var(--gold);
     font-size: 0.7rem;

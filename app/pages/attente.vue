@@ -3,30 +3,22 @@ const { user, fetch: fetchSession } = useUserSession();
 const { data: game } = useGame();
 const { t } = useI18n();
 
-// The global middleware sends the player on as soon as an admin adds them.
-let poll: ReturnType<typeof setInterval> | undefined;
+// Leaves as soon as an admin adds the account: the server then tells the
+// browser to refetch its session (app/plugins/realtime.client.ts).
+watch(
+    () => user.value?.role,
+    (role) => role && navigateTo("/"),
+);
 
-onMounted(() => {
-    poll = setInterval(async () => {
-        if (document.visibilityState !== "visible") {
-            return;
-        }
-
-        await fetchSession();
-
-        if (user.value?.role) {
-            await navigateTo("/");
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
+// Also checks after reconnecting, or regularly while the live connection is
+// down (both refresh "game").
+useRealtime(["game"], fetchSession);
 </script>
 
 <template>
     <main class="container page narrow waiting">
         <div class="portal" aria-hidden="true">
-            <span>⌛</span>
+            <Icon name="solar:hourglass-bold-duotone" class="ico" aria-hidden="true" />
         </div>
         <h1>{{ t("waitingPage.title") }}</h1>
         <div class="dialogue">

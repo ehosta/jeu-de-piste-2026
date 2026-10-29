@@ -8,6 +8,7 @@ export function useGame() {
       phase: "WAITING" as GamePhase,
       paused: false,
       pauseMessage: null as string | null,
+      lore: null as string | null,
     }),
   });
 }

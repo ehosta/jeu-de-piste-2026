@@ -68,5 +68,9 @@ export default defineEventHandler(async (event) => {
     throw notAllowed;
   }
 
+  await publishTeamQuestChange(team.id, quest.id, {
+    scores: action === "VALIDATE",
+  });
+
   return { status: nextStatus };
 });
