@@ -140,6 +140,11 @@ function photoErrorMessage(err: unknown, fallback: string) {
             return t("player.errors.locked");
         case "No photo pending":
             return t("player.errors.noPending");
+        case "Photo too large":
+        case "Payload too large":
+            return t("player.errors.tooLarge");
+        case "Unsupported image":
+            return t("player.errors.unsupported");
         default:
             return fallback;
     }

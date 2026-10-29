@@ -27,7 +27,7 @@ Pendant une incarnation, le bandeau propose **Gérer ce compte** (page Utilisate
 | Vue d'ensemble | Chiffres clés, état de la partie (lancer, pause, revenir en attente), « se mettre dans la peau de… », joueurs à placer, grille de progression modifiable |
 | Groupes | Générer des groupes au hasard, placer les joueurs sans groupe, créer, renommer, supprimer (seul ou en masse), gérer les membres, QR codes |
 | Utilisateurs | Ajouter des logins en masse, changer rôle et groupe, suppression et actions groupées |
-| PNJ & quêtes | Créer et modifier les PNJ (nom, lore) et leurs quêtes, partager une quête existante avec un autre PNJ |
+| PNJ & quêtes | Créer et modifier les PNJ (nom, lore, groupe de PNJ) et leurs quêtes, partager une quête existante avec un autre PNJ, renommer ou dissoudre un groupe de PNJ |
 | Import JSON | Éditer, simuler et appliquer un document JSON, exporter les données |
 | Messages | Envoyer un message sur l'écran des joueurs, des PNJ ou d'un groupe (« Rendez-vous dans 15 min en salle de conférence ! »), le retirer, voir combien d'appareils sont connectés en direct. Le bocal voit les messages affichés |
 | Lore | Réécrire l'histoire du jeu affichée par le bouton « Lore » du header (pour tout le monde, même sans être connecté), avec un aperçu. Elle change en direct sur tous les écrans. « Revenir au texte d'origine » remet celle de `app/i18n`, affichée dans la langue de chacun. Le bocal la lit seulement |
@@ -94,6 +94,7 @@ Le filtre **Validées par** ne montre que les photos validées par un PNJ, pour 
 Tout le monde dans le jeu (joueurs, PNJ, admins) a deux onglets sous le header, en plus de sa page : **Classement** et **Journal**. Ils se mettent à jour tout seuls.
 
 - **Quêtes partagées** : une quête peut être donnée par plusieurs PNJ (« Partager une quête existante » sur la carte d'un PNJ). N'importe lequel d'entre eux peut la donner puis valider la photo ; le joueur voit qui la lui a confiée et les autres PNJ qui peuvent la valider, le Journal indique le PNJ qui a validé.
+- **Groupes de PNJ** : par défaut un PNJ est solo. Mis dans un groupe (champ « Groupe de PNJ » sur sa carte : un nouveau nom crée le groupe, vide le rend solo), il donne et valide **toutes les quêtes des autres PNJ du groupe**, y compris celles ajoutées plus tard. Pratique pour que n'importe qui du bocal ou des admins puisse donner les quêtes du groupe. Chaque quête reste rattachée à son PNJ : un PNJ qui quitte le groupe emporte ses quêtes, un PNJ supprimé laisse les siennes à un autre membre. La page PNJ & quêtes affiche chaque groupe dans un encadré (renommer, dissoudre : chacun redevient solo et garde ses quêtes) ; les PNJ solos n'ont rien de plus.
 - **Noms** : un PNJ peut changer son nom depuis sa page d'accueil ; un joueur peut tirer un nouveau nom de groupe au hasard (🎲 sur la page du groupe).
 - **Difficulté** : chaque quête a une difficulté de 1 à 5 ★, réglée à la main (carte du PNJ dans « PNJ & quêtes », `difficulty` dans le JSON et dans `prefill.json`). Par défaut : 1.
 - **Points** (`shared/utils/scoring.ts`) : une quête validée rapporte **100 points par niveau de difficulté**, plus un bonus selon l'ordre de validation (date de validation) : **+50 %** pour le premier groupe, +40 % pour le deuxième, … +10 % pour le cinquième, plus rien ensuite. Exemple : une quête ★★★ rapporte 450 points au premier groupe, 420 au deuxième, 300 à partir du sixième.
@@ -175,7 +176,17 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
       ]
     },
     // La même quête sous un deuxième PNJ : elle est partagée entre eux.
-    { "login": "bwayne", "name": "Dame Brume", "quests": [{ "key": "cantine" }] }
+    { "login": "bwayne", "name": "Dame Brume", "quests": [{ "key": "cantine" }] },
+    // group : groupe de PNJ (créé s'il n'existe pas), null pour redevenir solo.
+    { "login": "ckent", "group": "Bocal" }
+  ],
+
+  // Groupes de PNJ : npcs met ces PNJ dans le groupe (les autres membres
+  // restent), rename le renomme, $delete rend tous ses membres solos.
+  "npcGroups": [
+    { "name": "Bocal", "npcs": ["dprince", "bwayne"] },
+    { "name": "Admins", "rename": "Les Admins" },
+    { "name": "Ancien groupe", "$delete": true }
   ],
 
   // Les quêtes peuvent aussi être listées à part : npcs remplace la liste des
@@ -205,7 +216,7 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 
 ### Ordre d'application
 
-`wipe` → `game` → `teams` → `users` → membres des `teams` → `npcs` (et leurs quêtes) → `quests` → `progress`. Un élément peut donc utiliser ce qu'une section précédente a créé (un utilisateur peut rejoindre un groupe créé dans le même document).
+`wipe` → `game` → `teams` → `users` → membres des `teams` → `npcs` (et leurs quêtes) → `npcGroups` → `quests` → `progress`. Un élément peut donc utiliser ce qu'une section précédente a créé (un utilisateur peut rejoindre un groupe créé dans le même document).
 
 ### Règles
 
@@ -218,6 +229,9 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 | PNJ sur un compte admin ou bocal | Le compte garde son rôle (et son groupe), avec en plus un profil PNJ |
 | `npcs` avec `$delete` | Supprime le profil PNJ et ses quêtes non partagées, le compte redevient joueur sans groupe (un admin reste admin et récupère un PNJ vierge) |
 | Quête qui n'a plus aucun PNJ à la fin du patch | Supprimée, avec sa progression |
+| PNJ d'un groupe supprimé | Ses quêtes passent à un autre PNJ du groupe au lieu d'être supprimées |
+| Groupe de PNJ vide à la fin du patch | Supprimé (un groupe d'un seul PNJ reste) |
+| `npcGroups` inconnu sans `npcs` | Erreur (`rename` ou `$delete` d'un groupe qui n'existe pas) |
 | Admin ou bocal sans groupe ou sans PNJ à la fin du patch | Il rejoint le groupe « Admins » (ou « Bocal ») et son PNJ est (re)créé |
 | Supprimer ou rétrograder un propriétaire (`NUXT_ADMIN_LOGINS`) | Erreur |
 | Nouvelle quête sans PNJ, `label` ou `answer` | Erreur |

@@ -5,6 +5,10 @@ const props = defineProps<{
     npc: AdminState["npcs"][number];
     // Every quest of the game, to give an existing one to this NPC too.
     quests: AdminState["quests"];
+    // The NPC groups' names, suggested in the group field.
+    groups: string[];
+    // The other NPCs of their group, who take over their quests if deleted.
+    groupMates: string[];
 }>();
 const emit = defineEmits<{ actAs: [npcId: string] }>();
 
@@ -13,7 +17,7 @@ const canEdit = useCanEdit();
 const { t } = useI18n();
 
 // Edits stay local until saved, and reset when the saved data changes.
-const draft = reactive({ name: "", lore: "" });
+const draft = reactive({ name: "", lore: "", group: "" });
 const questDrafts = ref<
     Record<string, { label: string; answer: string; difficulty: number }>
 >({});
@@ -42,6 +46,7 @@ watch(
     (npc) => {
         draft.name = npc.name;
         draft.lore = npc.lore;
+        draft.group = npc.group ?? "";
         questDrafts.value = Object.fromEntries(
             npc.quests.map((quest) => [quest.key, { ...quest }]),
         );
@@ -50,12 +55,25 @@ watch(
 );
 
 const dirty = computed(
-    () => draft.name !== props.npc.name || draft.lore !== props.npc.lore,
+    () =>
+        draft.name !== props.npc.name ||
+        draft.lore !== props.npc.lore ||
+        (draft.group.trim() || null) !== props.npc.group,
 );
 
+// An empty group makes the NPC solo.
 function save() {
     return apply(
-        { npcs: [{ login: props.npc.login, name: draft.name, lore: draft.lore }] },
+        {
+            npcs: [
+                {
+                    login: props.npc.login,
+                    name: draft.name,
+                    lore: draft.lore,
+                    group: draft.group.trim() || null,
+                },
+            ],
+        },
         { success: t("admin.npcs.saved", { name: draft.name }) },
     );
 }
@@ -146,11 +164,17 @@ function deleteNpc() {
     return apply(
         { npcs: [{ login: props.npc.login, $delete: true }] },
         {
-            confirm: t("admin.npcs.deleteNpc", {
-                name: props.npc.name,
-                count: props.npc.quests.filter((quest) => !quest.sharedWith.length).length,
-                login: props.npc.login,
-            }),
+            confirm: props.groupMates.length
+                ? t("admin.npcs.deleteGroupedNpc", {
+                    name: props.npc.name,
+                    group: props.npc.group ?? "",
+                    login: props.npc.login,
+                })
+                : t("admin.npcs.deleteNpc", {
+                    name: props.npc.name,
+                    count: props.npc.quests.filter((quest) => !quest.sharedWith.length).length,
+                    login: props.npc.login,
+                }),
         },
     );
 }
@@ -183,6 +207,20 @@ function deleteNpc() {
             <label class="field">
                 <span>{{ t("admin.npcs.lore") }}</span>
                 <textarea v-model="draft.lore" class="textarea" rows="3" />
+            </label>
+            <label class="field">
+                <span>{{ t("admin.npcGroups.field") }}</span>
+                <input
+                    v-model="draft.group"
+                    class="input"
+                    maxlength="80"
+                    :list="`npc-groups-${npc.id}`"
+                    :placeholder="t('admin.npcGroups.solo')"
+                >
+                <datalist :id="`npc-groups-${npc.id}`">
+                    <option v-for="group in groups" :key="group" :value="group" />
+                </datalist>
+                <small class="muted">{{ t("admin.npcGroups.fieldHint") }}</small>
             </label>
             <button v-if="dirty" class="btn btn-primary save" :disabled="busy">
                 {{ t("common.save") }}

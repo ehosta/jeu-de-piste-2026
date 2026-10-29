@@ -143,15 +143,20 @@ export function publish(...messages: RealtimeMessage[]) {
 }
 
 // A team's progress on a quest changed (given, photo sent or withdrawn,
-// reviewed): the team, the admin pages, and the quest's NPCs, who may have
-// that team on their scanner. A validation also moves the leaderboard.
+// reviewed): the team, the admin pages, and the quest's NPCs (and their
+// groups), who may have that team on their scanner. A validation also moves the leaderboard.
 export async function publishTeamQuestChange(
   teamId: string,
   questId: string,
   { scores = false } = {},
 ) {
   const npcs = await prisma.npc.findMany({
-    where: { quests: { some: { id: questId } } },
+    where: {
+      OR: [
+        { quests: { some: { id: questId } } },
+        { group: { npcs: { some: { quests: { some: { id: questId } } } } } },
+      ],
+    },
     select: { id: true },
   });
 

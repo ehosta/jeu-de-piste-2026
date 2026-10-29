@@ -1,6 +1,16 @@
+import type { LoginError } from "#shared/utils/login-error";
+
 export default defineEventHandler(async (event) => {
-  const { oauth2 } = useRuntimeConfig();
   const query = getQuery(event);
+
+  // Back to the landing page, which explains what happened (in the lore).
+  const fail = (reason: LoginError) =>
+    sendRedirect(event, `/?login_error=${reason}`);
+
+  // The player clicked "Deny" on the 42 page.
+  if (query.error) {
+    return fail(query.error === "access_denied" ? "denied" : "intra");
+  }
 
   if (!query.code) {
     const state = crypto.randomUUID();
@@ -11,18 +21,7 @@ export default defineEventHandler(async (event) => {
       maxAge: 600,
     });
 
-    const params = new URLSearchParams({
-      client_id: oauth2.clientId,
-      redirect_uri: oauth2.redirectUrl,
-      response_type: "code",
-      scope: "public",
-      state,
-    });
-
-    return sendRedirect(
-      event,
-      `https://api.intra.42.fr/oauth/authorize?${params}`,
-    );
+    return sendRedirect(event, useIntra().getOAuthUrl({ state }).url);
   }
 
   // Both must be there: without the cookie, a link carrying someone else's
@@ -30,44 +29,35 @@ export default defineEventHandler(async (event) => {
   const expectedState = getCookie(event, "oauth_state");
 
   if (!expectedState || query.state !== expectedState) {
-    throw createError({ statusCode: 400, statusMessage: "Invalid state" });
+    return fail("expired");
   }
 
   deleteCookie(event, "oauth_state");
 
-  const tokens = await $fetch<{ access_token: string }>(
-    "https://api.intra.42.fr/oauth/token",
-    {
-      method: "POST",
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: oauth2.clientId,
-        client_secret: oauth2.clientSecret,
-        code: String(query.code),
-        redirect_uri: oauth2.redirectUrl,
-      }),
-    },
-  );
+  let login: string;
 
-  const me = await $fetch<{ login: string }>(
-    "https://api.intra.42.fr/v2/me",
-    {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    },
-  );
+  try {
+    login = await fetchIntraLogin(String(query.code));
+  } catch (error) {
+    if (error instanceof IntraLoginError) {
+      return fail(error.reason);
+    }
+
+    throw error;
+  }
 
   // Before the game (WAITING), every 42 account joins as a player without a
   // team. Once it runs, only the people an admin added can play: anyone else
   // gets a session too, and waits on /attente until an admin adds them.
   // Owners are always in.
-  const known = await prisma.user.findUnique({ where: { intraLogin: me.login } });
+  const known = await prisma.user.findUnique({ where: { intraLogin: login } });
   let user = known;
 
-  if (isOwner(me.login)) {
-    user = await ensureOwner(me.login);
+  if (isOwner(login)) {
+    user = await ensureOwner(login);
   } else if (!known && (await getGame()).phase === "WAITING") {
-    user = await prisma.user.create({ data: { intraLogin: me.login } });
-    await prisma.waitingUser.deleteMany({ where: { intraLogin: me.login } });
+    user = await prisma.user.create({ data: { intraLogin: login } });
+    await prisma.waitingUser.deleteMany({ where: { intraLogin: login } });
   }
 
   if (user) {
@@ -77,8 +67,8 @@ export default defineEventHandler(async (event) => {
     });
   } else {
     await prisma.waitingUser.upsert({
-      where: { intraLogin: me.login },
-      create: { intraLogin: me.login },
+      where: { intraLogin: login },
+      create: { intraLogin: login },
       update: { lastSeenAt: new Date() },
     });
   }
@@ -87,7 +77,7 @@ export default defineEventHandler(async (event) => {
   publish({ to: STAFF_TOPIC, events: ["admin"] });
 
   await setUserSession(event, {
-    user: { intraLogin: me.login, role: user?.role ?? null },
+    user: { intraLogin: login, role: user?.role ?? null },
   });
 
   return sendRedirect(event, "/");

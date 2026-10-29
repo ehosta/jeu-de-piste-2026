@@ -123,6 +123,32 @@ describe('parseAdminPatch', () => {
     expect(issues({ quests: [{ key: 'q', npcs: [] }] })[0]?.path).toBe('quests[0].npcs')
   })
 
+  it('puts NPCs in a group, or makes them solo again', () => {
+    const parsed = parseAdminPatch({
+      npcs: [
+        { login: 'dprince', group: '  Bocal  ' },
+        { login: 'bwayne', group: null },
+      ],
+      npcGroups: [
+        { name: 'Bocal', rename: 'Le Bocal', npcs: ['CKent'] },
+        { name: 'Admins', $delete: true },
+      ],
+    })
+
+    expect(parsed.ok && parsed.patch.npcs).toEqual([
+      { login: 'dprince', group: 'Bocal' },
+      { login: 'bwayne', group: null },
+    ])
+    expect(parsed.ok && parsed.patch.npcGroups).toEqual([
+      { name: 'Bocal', rename: 'Le Bocal', npcs: ['ckent'] },
+      { name: 'Admins', $delete: true },
+    ])
+
+    expect(issues({ npcs: [{ login: 'dprince', group: '' }] })[0]).toMatchObject({ path: 'npcs[0].group', code: 'empty' })
+    expect(issues({ npcGroups: [{ name: 'Bocal' }, { name: 'Bocal' }] })[0]?.code).toBe('duplicate')
+    expect(issues({ npcGroups: [{ name: 'Bocal', members: [] }] })[0]?.path).toBe('npcGroups[0].members')
+  })
+
   it('rejects unknown wipe targets', () => {
     expect(issues({ wipe: ['admins'] })[0]?.path).toBe('wipe[0]')
   })

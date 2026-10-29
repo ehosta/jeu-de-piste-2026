@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The NPC's own card: the name the players see (editable) and the quests they
-// give, with the NPCs they share them with.
+// give, with the NPCs they share them with (shared quests, their group).
 const { data: npc, refresh } = await useFetch("/api/npc/me");
 const { t } = useI18n();
 
@@ -65,6 +65,14 @@ async function save() {
         <p class="muted small">{{ t("npcProfile.nameHint") }}</p>
 
         <h3>{{ t("npcProfile.questsTitle") }}</h3>
+        <p v-if="npc.group" class="small shared">
+            <Icon name="solar:users-group-rounded-bold-duotone" class="ico" aria-hidden="true" />
+            {{
+                npc.group.others.length
+                    ? t("npcProfile.group", { name: npc.group.name, others: npc.group.others.join(", ") })
+                    : t("npcProfile.groupAlone", { name: npc.group.name })
+            }}
+        </p>
         <p v-if="!npc.quests.length" class="muted small">{{ t("npcProfile.noQuest") }}</p>
         <ul v-else class="quests">
             <li v-for="quest in npc.quests" :key="quest.id" class="quest">

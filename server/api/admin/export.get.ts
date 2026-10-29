@@ -17,7 +17,10 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
     prisma.team.findMany({ where: { sandbox: false }, orderBy: { name: "asc" } }),
     prisma.npc.findMany({
       orderBy: { name: "asc" },
-      include: { user: { select: { intraLogin: true } } },
+      include: {
+        user: { select: { intraLogin: true } },
+        group: { select: { name: true } },
+      },
     }),
     // Listed apart from the NPCs, since a quest can be shared between them.
     prisma.quest.findMany({
@@ -52,6 +55,8 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
       login: npc.user.intraLogin,
       name: npc.name,
       lore: npc.lore,
+      // Solo NPCs have none.
+      ...(npc.group && { group: npc.group.name }),
     })),
     quests: quests.map((quest) => ({
       key: quest.key,

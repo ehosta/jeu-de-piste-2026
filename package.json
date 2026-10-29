@@ -21,6 +21,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@ibertran/fortytwo-intra-client": "5.1.0",
     "@iconify-json/pixelarticons": "^1.2.10",
     "@iconify-json/solar": "^1.2.13",
     "@nuxt/eslint": "1.17.0",

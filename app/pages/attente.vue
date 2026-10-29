@@ -39,9 +39,7 @@ useRealtime(["game"], fetchSession);
                 <p>{{ t("waitingPage.willPlace") }}</p>
             </template>
         </div>
-        <a v-if="game.phase === 'WAITING'" href="/auth/42" class="btn btn-primary">
-            {{ t("waitingPage.join") }}
-        </a>
+        <LoginButton v-if="game.phase === 'WAITING'" :label="t('waitingPage.join')" />
         <p v-else class="muted small center-text">{{ t("waitingPage.slow") }}</p>
     </main>
 </template>

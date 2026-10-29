@@ -1,6 +1,6 @@
 // Everything the admin pages show: game state, accounts waiting to be added,
-// users, teams with their progress, NPCs with their quests, and every quest
-// with the NPCs giving it (a quest can be shared). Bocal see it all too, in
+// users, teams with their progress, NPCs with their group and quests, and every
+// quest with the NPCs giving it (a quest can be shared). Bocal see it all too, in
 // read-only pages (`useCanEdit`).
 export default defineEventHandler(async (event) => {
   const admin = await requireStaff(event);
@@ -36,6 +36,7 @@ export default defineEventHandler(async (event) => {
       orderBy: { name: "asc" },
       include: {
         user: { select: { intraLogin: true } },
+        group: { select: { name: true } },
         quests: {
           orderBy: { key: "asc" },
           include: {
@@ -109,6 +110,8 @@ export default defineEventHandler(async (event) => {
       login: npc.user.intraLogin,
       name: npc.name,
       lore: npc.lore,
+      // Null for a solo NPC.
+      group: npc.group?.name ?? null,
       quests: npc.quests.map((quest) => ({
         key: quest.key,
         label: quest.label,

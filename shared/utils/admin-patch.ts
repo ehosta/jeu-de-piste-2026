@@ -76,9 +76,23 @@ export type NpcQuestPatch =
   | { key: string; $delete: true }
   | ({ key: string } & QuestFields);
 
+// `group`: the NPC group's name (created if new), null to make the NPC solo.
 export type NpcPatch =
   | { login: string; $delete: true }
-  | { login: string; name?: string; lore?: string; quests?: NpcQuestPatch[] };
+  | {
+      login: string;
+      name?: string;
+      lore?: string;
+      group?: string | null;
+      quests?: NpcQuestPatch[];
+    };
+
+// NPCs who give the same quests (prisma/quest.prisma). `npcs` are logins put
+// in the group, the others stay: take one out with `{ "login": …, "group":
+// null }` in `npcs`. `"$delete": true` makes every member solo again.
+export type NpcGroupPatch =
+  | { name: string; $delete: true }
+  | { name: string; rename?: string; npcs?: string[] };
 
 // `npcs` replaces the logins of the NPCs who give the quest (one or more: a
 // quest can be shared between NPCs).
@@ -102,6 +116,7 @@ export interface AdminPatch {
   teams?: TeamPatch[];
   users?: UserPatch[];
   npcs?: NpcPatch[];
+  npcGroups?: NpcGroupPatch[];
   quests?: QuestPatch[];
   progress?: ProgressPatch[];
 }
@@ -138,6 +153,8 @@ export type PatchIssueCode =
   | "npcNameRequired"
   | "questExists"
   | "notAnNpc"
+  | "unknownNpcGroup"
+  | "npcGroupExists"
   | "newQuestFields"
   | "unknownQuest"
   | "difficultyInvalid"
@@ -160,7 +177,7 @@ export type ParsedPatch =
 const LOGIN_REGEX = /^[a-z0-9-]{1,32}$/;
 // Quest keys: short, lowercase, URL-safe, e.g. "cantine" or "afk-2".
 export const QUEST_KEY_REGEX = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-// Team and NPC names.
+// Team, NPC and NPC group names.
 export const MAX_NAME_LENGTH = 80;
 const MAX_TEXT_LENGTH = 4000;
 export const MAX_LORE_LENGTH = 10_000;
@@ -172,6 +189,7 @@ const TOP_LEVEL_KEYS = [
   "teams",
   "users",
   "npcs",
+  "npcGroups",
   "quests",
   "progress",
 ];
@@ -465,7 +483,7 @@ class Parser {
       return login ? { login, $delete: true } : undefined;
     }
 
-    this.keys(raw, path, ["login", "name", "lore", "quests"]);
+    this.keys(raw, path, ["login", "name", "lore", "group", "quests"]);
     const npc: NpcPatch = { login: login ?? "" };
 
     if (raw.name !== undefined) {
@@ -476,9 +494,36 @@ class Parser {
       npc.lore = this.text(raw.lore, `${path}.lore`, MAX_TEXT_LENGTH, true);
     }
 
+    if (raw.group === null) {
+      npc.group = null;
+    } else if (raw.group !== undefined) {
+      npc.group = this.name(raw.group, `${path}.group`);
+    }
+
     npc.quests = this.list(raw.quests, `${path}.quests`, this.npcQuest);
 
     return login ? npc : undefined;
+  };
+
+  npcGroup = (raw: Raw, path: string): NpcGroupPatch | undefined => {
+    const name = this.name(raw.name, `${path}.name`);
+
+    if (this.deletion(raw, path, "name")) {
+      return name ? { name, $delete: true } : undefined;
+    }
+
+    this.keys(raw, path, ["name", "rename", "npcs"]);
+    const group: NpcGroupPatch = { name: name ?? "" };
+
+    if (raw.rename !== undefined) {
+      group.rename = this.name(raw.rename, `${path}.rename`);
+    }
+
+    if (raw.npcs !== undefined) {
+      group.npcs = this.logins(raw.npcs, `${path}.npcs`);
+    }
+
+    return name ? group : undefined;
   };
 
   quest = (raw: Raw, path: string): QuestPatch | undefined => {
@@ -624,6 +669,7 @@ export function parseAdminPatch(input: unknown): ParsedPatch {
     teams: parser.list(input.teams, "teams", parser.team),
     users: parser.list(input.users, "users", parser.user),
     npcs: parser.list(input.npcs, "npcs", parser.npc),
+    npcGroups: parser.list(input.npcGroups, "npcGroups", parser.npcGroup),
     quests: parser.list(input.quests, "quests", parser.quest),
     progress: parser.list(input.progress, "progress", parser.progress),
   };
@@ -631,6 +677,7 @@ export function parseAdminPatch(input: unknown): ParsedPatch {
   parser.unique(patch.teams, "teams", (team) => team.name);
   parser.unique(patch.users, "users", (user) => user.login);
   parser.unique(patch.npcs, "npcs", (npc) => npc.login);
+  parser.unique(patch.npcGroups, "npcGroups", (group) => group.name);
   // A quest can be listed under several NPCs (it is shared), but only once
   // per NPC.
   patch.npcs?.forEach((npc, index) => {
@@ -688,6 +735,7 @@ export interface PatchReport {
   teams: PatchCounter;
   users: PatchCounter;
   npcs: PatchCounter;
+  npcGroups: PatchCounter;
   quests: PatchCounter;
   progress: PatchCounter;
 }

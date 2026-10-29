@@ -49,7 +49,7 @@ Each team has an opaque `qrToken` (UUID) stored on its `Team` row. That token is
 
 Roles are reloaded from the database on every request (`requireRole` in `server/utils/auth.ts`), and in the session the app fetches on each page load (`server/plugins/session.ts`), so role changes take effect without logging in again.
 
-Only NPCs can scan. A quest can be shared between several NPCs (`Quest.npcs`, many-to-many): any of them can give and review it, and `TeamQuest.givenBy` / `validatedBy` record which one did. A scan returns the team (name, members) and, for each of the NPC's quests (shared ones included), the `actions` its status allows (`shared/utils/quest-actions.ts`):
+Only NPCs can scan. A quest can be shared between several NPCs (`Quest.npcs`, many-to-many): any of them can give and review it, and `TeamQuest.givenBy` / `validatedBy` record which one did. NPCs can also be put in an **NPC group** (`NpcGroup`, `Npc.groupId`; null means solo): they then give and review every quest of every member of the group. Quests stay attached to their NPC, so the group only widens access: `npcQuestsWhere()` in `server/utils/npc.ts` is the one condition used by the scan, the actions, the NPC profile, and `questGivers()` lists who can give a quest (photos, the player's "can also be reviewed by", live updates). A scan returns the team (name, members) and, for each of the NPC's quests (shared ones included), the `actions` its status allows (`shared/utils/quest-actions.ts`):
 
 | Status | Actions | Result |
 | --- | --- | --- |

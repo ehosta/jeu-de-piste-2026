@@ -33,10 +33,7 @@ const RESTORED_SLOT = 2;
                     </figcaption>
                 </figure>
                 <p class="muted">{{ t("landing.call") }}</p>
-                <a href="/auth/42" class="btn btn-primary login-button">
-                    <Icon name="solar:login-3-bold-duotone" class="ico" aria-hidden="true" />
-                    {{ t("landing.login") }}
-                </a>
+                <LoginButton :label="t('landing.login')" />
             </div>
 
             <div class="book" aria-hidden="true">
@@ -213,14 +210,14 @@ const RESTORED_SLOT = 2;
     opacity: 1;
 }
 
-.login-button {
+.hero-text :deep(.login-button) {
     align-self: flex-start;
     min-width: 15rem;
     font-size: 1.1rem;
 }
 
 @media (max-width: 30rem) {
-    .login-button {
+    .hero-text :deep(.login-button) {
         align-self: stretch;
     }
 }

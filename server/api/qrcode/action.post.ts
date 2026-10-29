@@ -1,6 +1,5 @@
-// Applies an NPC action (give / validate / reject) to one of their quests (own
-// or shared with other NPCs) for
-// the scanned team. The status is re-checked here, so a stale screen or a
+// Applies an NPC action (give / validate / reject) to one of their quests (own,
+// shared with other NPCs or of their group) for the scanned team. The status is re-checked here, so a stale screen or a
 // double tap can't e.g. reject an already validated (locked) quest. Reviews
 // also send the photo the NPC looked at, so a photo withdrawn or retaken in
 // the meantime can't be validated unseen.
@@ -19,7 +18,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const quest = await prisma.quest.findFirst({
-    where: { id: questId, npcs: { some: { id: npc.id } } },
+    where: { id: questId, ...npcQuestsWhere(npc) },
   });
 
   if (!quest) {
@@ -45,7 +44,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const { status: nextStatus, dateField, npcField } = QUEST_ACTION_RESULTS[action];
-  // A shared quest remembers which of its NPCs gave and validated it.
+  // A shared quest remembers which NPC gave and validated it.
   const data = {
     status: nextStatus,
     [dateField]: new Date(),

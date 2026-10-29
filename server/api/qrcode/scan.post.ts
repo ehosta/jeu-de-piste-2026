@@ -1,17 +1,14 @@
 // Resolves a scanned team QR code into the scanning NPC's quests (shared ones
-// included), each with the actions its current status allows for that team.
+// and their group's included), each with the actions its current status allows for that team.
 export default defineEventHandler(async (event) => {
   const npc = await requireNpc(event);
   const body = await readBody<{ token?: unknown } | undefined>(event);
   const team = await findTeamByQrToken(body?.token);
 
   const quests = await prisma.quest.findMany({
-    where: { npcs: { some: { id: npc.id } } },
+    where: npcQuestsWhere(npc),
     orderBy: { key: "asc" },
-    include: {
-      teamQuest: { where: { teamId: team.id } },
-      npcs: { where: { id: { not: npc.id } }, select: { name: true } },
-    },
+    include: { ...QUEST_GIVERS, teamQuest: { where: { teamId: team.id } } },
   });
 
   return {
@@ -27,8 +24,10 @@ export default defineEventHandler(async (event) => {
         id: quest.id,
         label: quest.label,
         answer: quest.answer,
-        // The other NPCs sharing this quest.
-        sharedWith: quest.npcs.map((other) => other.name),
+        // The other NPCs who can give it (shared quest, same group).
+        sharedWith: questGivers(quest.npcs)
+          .filter((other) => other.id !== npc.id)
+          .map((other) => other.name),
         status,
         photoPath: teamQuest?.photoPath ?? null,
         actions: getAllowedQuestActions(status),

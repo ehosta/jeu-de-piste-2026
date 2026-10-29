@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
             select: {
               label: true,
               difficulty: true,
-              npcs: { select: { name: true }, orderBy: { name: "asc" } },
+              ...QUEST_GIVERS,
             },
           },
           givenBy: { select: { name: true } },
@@ -44,14 +44,15 @@ export default defineEventHandler(async (event) => {
     rank: score?.rank ?? null,
     members: team.members.map((member) => member.intraLogin),
     quests: team.quests.map((teamQuest) => {
-      const npcs = teamQuest.quest.npcs.map((npc) => npc.name);
+      const npcs = questGivers(teamQuest.quest.npcs).map((npc) => npc.name);
       const npc = teamQuest.givenBy?.name ?? npcs[0] ?? "";
 
       return {
         id: teamQuest.questId,
         label: teamQuest.quest.label,
         difficulty: teamQuest.quest.difficulty,
-        // Who gave it, and the other NPCs who can review it (shared quest).
+        // Who gave it, and the other NPCs who can review it (shared quest,
+        // same group).
         npc,
         otherNpcs: npcs.filter((name) => name !== npc),
         status: teamQuest.status,

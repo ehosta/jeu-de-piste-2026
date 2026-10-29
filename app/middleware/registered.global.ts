@@ -4,8 +4,9 @@ export default defineNuxtRouteMiddleware((to) => {
   const { user } = useUserSession();
   const waiting = !!user.value && !user.value.role;
 
+  // Keeps `?login_error=`: /attente has a login button too.
   if (waiting && to.path !== "/attente") {
-    return navigateTo("/attente");
+    return navigateTo({ path: "/attente", query: to.query });
   }
 
   if (!waiting && to.path === "/attente") {
