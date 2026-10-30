@@ -1,0 +1,22 @@
+# Copy to /etc/systemd/system/campudex.service (done by scripts/deploy.sh, which
+# also fills in the real paths and user). See docs/DEPLOY.md.
+[Unit]
+Description=Campudex (jeu de piste)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=campudex
+# Photos are written to <WorkingDirectory>/.data/photos: it must stay the same
+# from one deployment to the next.
+WorkingDirectory=/srv/campudex/app
+EnvironmentFile=/srv/campudex/app/.env
+# Here rather than in .env, so `pnpm install` keeps the devDependencies (the
+# prisma CLI is one). The app only listens locally, nginx does the rest.
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=3000
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

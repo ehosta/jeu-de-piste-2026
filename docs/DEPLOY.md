@@ -18,6 +18,8 @@ Garde le tunnel pour **tester depuis ton PC** avant le jour J. En prod, il ne fa
 
 > ⚠️ **Si `campudex.elouann.dev` pointe aujourd'hui vers le tunnel** (enregistrement `CNAME` vers `…cfargotunnel.com` créé par Cloudflare), il faut le remplacer par un enregistrement **`A`** (et `AAAA` si IPv6) vers l'IP de ton serveur, et supprimer le *Public hostname* du tunnel. Sinon les requêtes continuent d'aller vers ton PC. Tu peux laisser le nuage orange (proxy Cloudflare) : il gère les WebSockets. Dans ce cas, mets **SSL/TLS → Full (strict)** dans Cloudflare.
 
+> 🚀 **Raccourci :** une fois le serveur prêt (étape 1), le `.env` rempli (étape 2) et le certificat en place, `sudo bash scripts/deploy.sh` depuis le clone fait les étapes 3, 5 et 6 : build, service systemd, site nginx (copiés depuis `deploy/`). Le domaine vient de `NUXT_OAUTH2_REDIRECT_URL`. Pour une mise à jour : `sudo bash scripts/deploy.sh --pull`. Le script ajoute l'utilisateur de l'app au groupe `docker` si la base est locale. Certificat hors certbot : renseigne `SSL_CERT` et `SSL_KEY` dans `.env`.
+
 ## Vue d'ensemble
 
 ```
