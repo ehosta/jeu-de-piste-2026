@@ -19,7 +19,14 @@ env_value() { sed -nE "s/^$1=\"?([^\"]*)\"?\$/\1/p" "$APP_DIR/.env" | tail -1; }
 APP_USER="$(stat -c %U "$APP_DIR")"
 [ "$APP_USER" != root ] || fail "$APP_DIR belongs to root: it must belong to the user that runs the app."
 
-as_app() { sudo -iu "$APP_USER" bash -c "cd '$APP_DIR' && $1"; }
+# nvm isn't loaded in a non-interactive shell: without this, no node or pnpm.
+as_app() {
+  sudo -u "$APP_USER" -H bash -c '
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    cd "$1" && eval "$2"
+  ' _ "$APP_DIR" "$1"
+}
 
 # Everything that can be wrong is checked before anything changes.
 [ -f "$APP_DIR/.env" ] || fail "No .env in $APP_DIR (start from .env.example)."

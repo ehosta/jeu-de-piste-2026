@@ -60,6 +60,8 @@ corepack enable            # fournit pnpm
 node --version             # v22 ou plus
 ```
 
+Avec **nvm** : installe-le **avec l'utilisateur de l'app** (`campudex`, créé juste après), pas avec ton compte, sinon l'app ne verra pas Node. `scripts/deploy.sh` le charge tout seul et met le bon chemin de `node` dans le service systemd. Après un changement de version de Node, relance-le.
+
 Crée un utilisateur dédié et récupère le code :
 
 ```bash
