@@ -6,24 +6,24 @@ Ce guide met le jeu en ligne sur **ton propre serveur**, qui a déjà un nom de 
 
 **Non, pas en production.** Le tunnel ([TUNNEL.md](TUNNEL.md)) sert à exposer une machine qui n'est **pas joignable depuis Internet** (ton PC derrière le wifi du campus ou une box), sans ouvrir de port. Ton serveur a déjà une IP publique, un domaine et un certificat : le tunnel n'y apporterait qu'un intermédiaire de plus (latence, une panne possible en plus, un token à protéger).
 
-| | `pnpm dev:tunnel` (ton PC) | Serveur perso (ce guide) |
-| --- | --- | --- |
-| Joignable sans ouvrir de port | ✅ | inutile, le serveur l'est déjà |
-| HTTPS | certificat Cloudflare | **ton certificat**, via nginx |
-| Le jeu tient si ton PC s'éteint | ❌ | ✅ |
-| Hot reload pour coder | ✅ | ❌ (build de prod) |
-| Mode | `nuxt dev` (lent, pas fait pour 200 téléphones) | build optimisé |
+|                                 | `pnpm dev:tunnel` (ton PC)                      | Serveur perso (ce guide)       |
+| ------------------------------- | ----------------------------------------------- | ------------------------------ |
+| Joignable sans ouvrir de port   | ✅                                              | inutile, le serveur l'est déjà |
+| HTTPS                           | certificat Cloudflare                           | **ton certificat**, via nginx  |
+| Le jeu tient si ton PC s'éteint | ❌                                              | ✅                             |
+| Hot reload pour coder           | ✅                                              | ❌ (build de prod)             |
+| Mode                            | `nuxt dev` (lent, pas fait pour 200 téléphones) | build optimisé                 |
 
 Garde le tunnel pour **tester depuis ton PC** avant le jour J. En prod, il ne faut **pas** le lancer.
 
-> ⚠️ **Si `campudex.elouann.dev` pointe aujourd'hui vers le tunnel** (enregistrement `CNAME` vers `…cfargotunnel.com` créé par Cloudflare), il faut le remplacer par un enregistrement **`A`** (et `AAAA` si IPv6) vers l'IP de ton serveur, et supprimer le *Public hostname* du tunnel. Sinon les requêtes continuent d'aller vers ton PC. Tu peux laisser le nuage orange (proxy Cloudflare) : il gère les WebSockets. Dans ce cas, mets **SSL/TLS → Full (strict)** dans Cloudflare.
+> ⚠️ **Si `campudex.elouann.dev` pointe aujourd'hui vers le tunnel** (enregistrement `CNAME` vers `…cfargotunnel.com` créé par Cloudflare), il faut le remplacer par un enregistrement **`A`** (et `AAAA` si IPv6) vers l'IP de ton serveur, et supprimer le _Public hostname_ du tunnel. Sinon les requêtes continuent d'aller vers ton PC. Tu peux laisser le nuage orange (proxy Cloudflare) : il gère les WebSockets. Dans ce cas, mets **SSL/TLS → Full (strict)** dans Cloudflare.
 
 > 🚀 **Raccourci :** une fois le serveur prêt (étape 1), le `.env` rempli (étape 2) et le certificat en place, `sudo bash scripts/deploy.sh` depuis le clone fait les étapes 3, 5 et 6 : build, service systemd, site nginx (copiés depuis `deploy/`). Le domaine vient de `NUXT_OAUTH2_REDIRECT_URL`. Pour une mise à jour : `sudo bash scripts/deploy.sh --pull`. Le script ajoute l'utilisateur de l'app au groupe `docker` si la base est locale. Certificat hors certbot : renseigne `SSL_CERT` et `SSL_KEY` dans `.env`.
 
 ## Vue d'ensemble
 
 ```
-Téléphones ──HTTPS / WSS (443)──▶ nginx ──HTTP (127.0.0.1:3000)──▶ Nuxt (Node) ──▶ PostgreSQL (Docker, 127.0.0.1:5432)
+Téléphones ──HTTPS / WSS (443)──▶ nginx ──HTTP (127.0.0.1:3000)──▶ Nuxt (Node) ──▶ PostgreSQL (Docker, 127.0.0.1:5436)
                                   │                                   │
                           ton certificat SSL                  photos : <dossier de l'app>/.data/photos
 ```
@@ -36,13 +36,13 @@ Téléphones ──HTTPS / WSS (443)──▶ nginx ──HTTP (127.0.0.1:3000)�
 
 Tout fonctionne sans configuration particulière **tant que le site est servi en HTTPS, sur son domaine** :
 
-| Fonction | Ce qui exige le HTTPS | Ce qu'il se passe en HTTP |
-| --- | --- | --- |
-| **Scan des QR codes** (PNJ, `/scan`) | La caméra (`getUserMedia`) n'est donnée qu'aux pages sécurisées | « La caméra demande une connexion sécurisée » |
-| **Connexion 42** | Le cookie de session est `Secure` | Connecté, puis renvoyé sur l'accueil en boucle |
-| **Photos** (envoi et affichage) | Servies par l'app elle-même (`/api/photos/…`), donc même origine : pas de *mixed content* | Fonctionne, mais rien d'autre ne marche |
-| **Temps réel** | Le navigateur ouvre `wss://` tout seul quand la page est en `https://` | `ws://` refusé par certains réseaux |
-| **Lecteur QR sur iPhone** | Le module WASM (`zxing-wasm`) est servi par l'app, pas par un CDN | — |
+| Fonction                             | Ce qui exige le HTTPS                                                                     | Ce qu'il se passe en HTTP                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Scan des QR codes** (PNJ, `/scan`) | La caméra (`getUserMedia`) n'est donnée qu'aux pages sécurisées                           | « La caméra demande une connexion sécurisée »  |
+| **Connexion 42**                     | Le cookie de session est `Secure`                                                         | Connecté, puis renvoyé sur l'accueil en boucle |
+| **Photos** (envoi et affichage)      | Servies par l'app elle-même (`/api/photos/…`), donc même origine : pas de _mixed content_ | Fonctionne, mais rien d'autre ne marche        |
+| **Temps réel**                       | Le navigateur ouvre `wss://` tout seul quand la page est en `https://`                    | `ws://` refusé par certains réseaux            |
+| **Lecteur QR sur iPhone**            | Le module WASM (`zxing-wasm`) est servi par l'app, pas par un CDN                         | —                                              |
 
 Points d'attention côté proxy, détaillés plus bas :
 
@@ -87,9 +87,9 @@ Dans `/srv/campudex/app/.env` (partir de `.env.example`) :
 POSTGRES_USER=campudex
 POSTGRES_PASSWORD=<mot de passe long et aléatoire>
 POSTGRES_DB=jeu_de_piste
-POSTGRES_PORT=5432
+POSTGRES_PORT=5436
 
-NUXT_DATABASE_URL="postgresql://campudex:<le même mot de passe>@localhost:5432/jeu_de_piste"
+NUXT_DATABASE_URL="postgresql://campudex:<le même mot de passe>@localhost:5436/jeu_de_piste"
 NUXT_ADMIN_LOGINS=ehosta,fmaudhui,pamuller
 
 # Au moins 32 caractères : `openssl rand -base64 48`. Le changer déconnecte tout le monde.
@@ -129,7 +129,7 @@ pnpm prod --no-start
 
 `docker-compose.yaml` n'expose PostgreSQL que sur `127.0.0.1` : Docker contourne `ufw`, une base ouverte sur `0.0.0.0` serait joignable depuis Internet malgré le pare-feu.
 
-> ⚠️ **Jamais `pnpm db:push` ni `pnpm dev:reset` en prod** : ils **effacent toute la base**. `pnpm dev:reset` refuse d'ailleurs de tourner avec `NODE_ENV=production` ou une base qui n'est pas sur `localhost`, mais en prod la base *est* sur `localhost`.
+> ⚠️ **Jamais `pnpm db:push` ni `pnpm dev:reset` en prod** : ils **effacent toute la base**. `pnpm dev:reset` refuse d'ailleurs de tourner avec `NODE_ENV=production` ou une base qui n'est pas sur `localhost`, mais en prod la base _est_ sur `localhost`.
 
 Au premier démarrage, la base vide est remplie depuis `prefill.json` (voir [ADMIN.md](ADMIN.md)).
 
@@ -313,15 +313,15 @@ L'export JSON de l'admin (**Import JSON → Télécharger un export**) sauvegard
 
 ## En cas de problème
 
-| Symptôme | Cause probable |
-| --- | --- |
-| `502 Bad Gateway` | L'app ne tourne pas ou pas sur ce port : `systemctl status campudex`, `journalctl -u campudex`. |
+| Symptôme                                                                        | Cause probable                                                                                                                                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `502 Bad Gateway`                                                               | L'app ne tourne pas ou pas sur ce port : `systemctl status campudex`, `journalctl -u campudex`.                                                                          |
 | Bandeau « Connexion perdue, reconnexion… » permanent, compteur des Messages à 0 | Les WebSockets ne passent pas : en-têtes `Upgrade` / `Connection` manquants dans nginx (étape 6). Le jeu marche quand même, en rechargeant les données toutes les ~25 s. |
-| Envoi de photo : erreur, `413` dans les logs nginx | `client_max_body_size` manquant ou trop petit. |
-| `/scan` : « connexion sécurisée requise » | Site ouvert en `http://` ou via l'IP : utiliser `https://<domaine>`. |
-| Connexion 42 qui boucle vers l'accueil | Cookie `Secure` refusé (site en HTTP), ou `NUXT_SESSION_PASSWORD` changé / trop court. |
-| Erreur `redirect_uri` sur la page 42 | `NUXT_OAUTH2_REDIRECT_URL` différent de l'URL déclarée dans l'app 42. |
-| Le site répond, mais c'est ton PC (ou rien) | Le DNS pointe encore vers le tunnel (voir l'encadré en haut). |
-| Erreur certificat sur Android uniquement | Chaîne intermédiaire manquante : utiliser `fullchain.pem`. |
-| Photos disparues après un redéploiement | `WorkingDirectory` changé : elles sont dans l'ancien `.data/photos`. |
-| Les notifications arrivent à certains téléphones seulement | Plusieurs instances de l'app derrière le proxy : n'en lancer qu'une. |
+| Envoi de photo : erreur, `413` dans les logs nginx                              | `client_max_body_size` manquant ou trop petit.                                                                                                                           |
+| `/scan` : « connexion sécurisée requise »                                       | Site ouvert en `http://` ou via l'IP : utiliser `https://<domaine>`.                                                                                                     |
+| Connexion 42 qui boucle vers l'accueil                                          | Cookie `Secure` refusé (site en HTTP), ou `NUXT_SESSION_PASSWORD` changé / trop court.                                                                                   |
+| Erreur `redirect_uri` sur la page 42                                            | `NUXT_OAUTH2_REDIRECT_URL` différent de l'URL déclarée dans l'app 42.                                                                                                    |
+| Le site répond, mais c'est ton PC (ou rien)                                     | Le DNS pointe encore vers le tunnel (voir l'encadré en haut).                                                                                                            |
+| Erreur certificat sur Android uniquement                                        | Chaîne intermédiaire manquante : utiliser `fullchain.pem`.                                                                                                               |
+| Photos disparues après un redéploiement                                         | `WorkingDirectory` changé : elles sont dans l'ancien `.data/photos`.                                                                                                     |
+| Les notifications arrivent à certains téléphones seulement                      | Plusieurs instances de l'app derrière le proxy : n'en lancer qu'une.                                                                                                     |

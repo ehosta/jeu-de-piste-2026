@@ -8,7 +8,7 @@ services:
     ports:
       # Only reachable from this machine: Docker would otherwise open the port
       # to the whole network, past the firewall (ufw).
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5436}:5436"
     volumes:
       - db-data:/var/lib/postgresql/data
     # Lets `docker compose up --wait` (pnpm dev:reset, pnpm prod) wait until the
