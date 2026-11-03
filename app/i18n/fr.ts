@@ -88,7 +88,6 @@ export const fr = {
   // The landing page while the game is only announced (SOON).
   soon: {
     title: "Bientôt…",
-    text: "Sir Claudius rassemble ce qu'il reste du Campudex. Le portail s'ouvrira très bientôt, reste dans les parages !",
     admin: "Admin ?",
   },
   home: {

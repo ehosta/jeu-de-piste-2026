@@ -27,7 +27,6 @@ const RESTORED_SLOT = 2;
         <p class="eyebrow">{{ t("landing.eyebrow") }}</p>
         <h1><span class="gilded">Campudex</span></h1>
         <p class="soon-title">{{ t("soon.title") }}</p>
-        <p class="lead">{{ t("soon.text") }}</p>
         <div class="soon-admin">
             <LoginButton ghost :label="t('soon.admin')" />
         </div>

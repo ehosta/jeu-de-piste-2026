@@ -62,7 +62,8 @@ function stopActing() {
                         <span class="logout-label">{{ t("header.logout") }}</span>
                     </button>
                 </nav>
-                <LoreButton />
+                <!-- Nothing of the story yet on the "soon" page. -->
+                <LoreButton v-if="user || game.phase !== 'SOON'" />
                 <div class="lang" role="group" :aria-label="t('header.language')">
                     <button
                         v-for="value in LOCALES"

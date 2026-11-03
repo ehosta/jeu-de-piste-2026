@@ -86,7 +86,6 @@ export const en: Messages = {
   // The landing page while the game is only announced (SOON).
   soon: {
     title: "Soon…",
-    text: "Sir Claudius is gathering what's left of the Campudex. The portal will open very soon, stay around!",
     admin: "Admin?",
   },
   home: {
