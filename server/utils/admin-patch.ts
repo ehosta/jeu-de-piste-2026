@@ -105,10 +105,21 @@ class PatchRunner {
     }
 
     if (patch.game) {
+      const before = await this.tx.game.findUnique({ where: { id: 1 } });
+      // The first start of the game, for the final quest race and the stats:
+      // kept through pauses and going back to WAITING, cleared by SOON.
+      const startedAt =
+        patch.game.phase === "SOON"
+          ? null
+          : patch.game.phase === "RUNNING" && !before?.startedAt
+            ? new Date()
+            : undefined;
+      const data = { ...patch.game, ...(startedAt !== undefined && { startedAt }) };
+
       await this.tx.game.upsert({
         where: { id: 1 },
-        create: { id: 1, ...patch.game },
-        update: patch.game,
+        create: { id: 1, ...data },
+        update: data,
       });
       this.report.game = true;
 
@@ -537,6 +548,7 @@ class PatchRunner {
       label: patch.label,
       answer: patch.answer,
       difficulty: patch.difficulty,
+      secret: patch.secret,
     };
 
     if (existing) {

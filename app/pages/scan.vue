@@ -69,7 +69,9 @@ function errorMessage(err: unknown) {
         case 400:
             return t("scan.errors.notOurs");
         case 403:
-            return t("scan.errors.notNpc");
+            return statusMessage === "Secret locked"
+                ? t("scan.errors.secretLocked")
+                : t("scan.errors.notNpc");
         case 404:
             return t("scan.errors.unknown");
         case 409:
@@ -236,13 +238,29 @@ function onCameraError(err: EmittedError) {
             >
                 <div class="card-header">
                     <h2>{{ quest.label }}</h2>
+                    <span v-if="quest.secret" class="badge badge-warning">
+                        <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                        {{ t("secret.badge") }}
+                    </span>
                     <StatusBadge :status="quest.status" />
                 </div>
                 <p v-if="quest.sharedWith.length" class="muted small">
                     <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
                 </p>
 
-                <template v-if="quest.actions.includes('GIVE')">
+                <div v-if="quest.locked" class="oops">
+                    <p><strong>{{ t("scan.secretLockedTitle") }}</strong></p>
+                    <p>
+                        {{
+                            t("scan.secretLockedText", {
+                                points: result.team.points,
+                                threshold: result.secretThreshold,
+                            })
+                        }}
+                    </p>
+                </div>
+
+                <template v-else-if="quest.actions.includes('GIVE')">
                     <p>{{ t("scan.give") }}</p>
                     <div class="actions">
                         <button class="btn" @click="scanAgain">{{ t("scan.no") }}</button>

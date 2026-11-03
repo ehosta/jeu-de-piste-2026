@@ -4,7 +4,8 @@
 // - intra: the 42 API is down or answered something unexpected.
 // - expired: the login link was too old or already used (state, code).
 // - denied: the player refused the authorization on the 42 page.
-export const LOGIN_ERRORS = ["busy", "intra", "expired", "denied"] as const;
+// - soon: the game isn't open yet (SOON), only admins can log in.
+export const LOGIN_ERRORS = ["busy", "intra", "expired", "denied", "soon"] as const;
 
 export type LoginError = (typeof LOGIN_ERRORS)[number];
 

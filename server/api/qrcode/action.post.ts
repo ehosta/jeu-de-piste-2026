@@ -43,6 +43,17 @@ export default defineEventHandler(async (event) => {
     throw notAllowed;
   }
 
+  // The final objective, only for teams with enough points.
+  const { secretThreshold } = await getGame();
+
+  if (
+    action === "GIVE" &&
+    quest.secret &&
+    !hasSecretAccess(await teamPoints(team.id), secretThreshold)
+  ) {
+    throw createError({ statusCode: 403, statusMessage: "Secret locked" });
+  }
+
   const { status: nextStatus, dateField, npcField } = QUEST_ACTION_RESULTS[action];
   // A shared quest remembers which NPC gave and validated it.
   const data = {
@@ -70,6 +81,11 @@ export default defineEventHandler(async (event) => {
   await publishTeamQuestChange(team.id, quest.id, {
     scores: action === "VALIDATE",
   });
+
+  // Tells the team once it reaches the threshold for the final objective.
+  if (action === "VALIDATE") {
+    await syncSecretNotifications(team.id);
+  }
 
   return { status: nextStatus };
 });

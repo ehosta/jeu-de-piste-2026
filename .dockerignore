@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.git
+.data
+.nuxt
+.output
+.nitro
+.cache
+node_modules
+prisma/generated
+coverage

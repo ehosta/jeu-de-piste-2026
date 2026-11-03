@@ -40,7 +40,12 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
   ]);
 
   return {
-    game: { paused: game.paused, pauseMessage: game.pauseMessage, lore: game.lore },
+    game: {
+      paused: game.paused,
+      pauseMessage: game.pauseMessage,
+      lore: game.lore,
+      secretThreshold: game.secretThreshold,
+    },
     teams: teams.map((team) => ({ name: team.name })),
     users: users.map((user) =>
       user.role !== "NPC"
@@ -64,6 +69,7 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
       label: quest.label,
       answer: quest.answer,
       difficulty: quest.difficulty,
+      ...(quest.secret && { secret: true }),
     })),
     progress: progress.map((teamQuest) => ({
       team: teamQuest.team.name,

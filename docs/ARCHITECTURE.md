@@ -89,6 +89,7 @@ Impersonation is stored in the server-only part of the session (`secure.actingAs
 
 Users are matched by 42 login. The single `Game` row holds the phase and the pause:
 
+- `SOON` (announced, not open yet): the landing page only shows "soon", with a discreet "Admin?" login button. Only admins (and owners) can log in: anyone else is logged out and sent back with `?login_error=soon` (`server/routes/auth/42.get.ts`), and `app.vue` logs out a non-admin session still open when the phase switches to `SOON`.
 - `WAITING` (before the game): logging in with an unknown 42 account creates a player without a team. Admins form the teams, by hand or with the generator (`shared/utils/team-generator.ts` and `shared/utils/team-names.ts`, applied through a patch).
 - `RUNNING`: logging in never creates a user. An unknown account gets a session with `role: null`, is sent to `/attente` by `app/middleware/registered.global.ts`, and is recorded in `WaitingUser` so admins can place it. Going back to `WAITING` turns those accounts into players.
 
@@ -99,6 +100,8 @@ An empty database (no `Game` row) is filled at startup from `prefill.json` (`ser
 ## Leaderboard and log
 
 Points aren't stored: `computeScores()` (`server/utils/scores.ts`) recomputes them from the validated `TeamQuest` rows, ordered by `validatedAt`, so a team's rank on a quest is its position among the teams that validated it. The formula (100 points per difficulty level, +50% for the first team, 10 points less per next team down to +0%) is in `shared/utils/scoring.ts`. The admins' team (`sandbox`, see `server/utils/admins.ts`) never counts in the order of the real teams; admins see it in the leaderboard and the log (`sandbox: true`) with the rank it would have. `GET /api/leaderboard`, `GET /api/logs` and `GET /api/teams/me` (points, rank, total number of quests, to show the end-of-Campudex message) all use it.
+
+Secret quests (`Quest.secret`, the final objective) only open to a team with at least `Game.secretThreshold` points (`hasSecretAccess`): `/api/qrcode/scan` shows them `locked` and `/api/qrcode/action` refuses to give them (`403 Secret locked`). `syncSecretNotifications()` (after each validation and each admin patch) keeps an urgent notification on the screens of the teams that reached the threshold and haven't finished, and takes it down otherwise. `computeScores()` also returns `finalRace`, the teams ranked by the time of their first secret validation. `Game.startedAt` (set the first time the game goes `RUNNING`, cleared by `SOON`) only feeds the stats page. Team names are only changed by admins (patch `teams[].rename`).
 
 ## Languages
 
@@ -162,4 +165,3 @@ Both collections are installed (`@iconify-json/*`), never fetched from the Iconi
 | Route | Role | Effect |
 | --- | --- | --- |
 | `GET /api/npc/me` / `PATCH /api/npc/me` `{ name }` | `NPC` | The NPC's profile and quests; renames the NPC |
-| `POST /api/teams/me/name` `{ locale }` | `PLAYER` | Draws a new random, unused team name (`shared/utils/team-names.ts`) |

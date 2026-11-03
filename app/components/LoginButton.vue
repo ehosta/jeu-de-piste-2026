@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// The "log in with 42" button (landing page, /attente). It goes to the 42 page
+// The "log in with 42" button (landing page, /attente, and the discreet admin
+// one of the "soon" page). It goes to the 42 page
 // only once: clicking again while it loads would spend more of the 42 API's
 // requests (2 per second for the whole game, see server/utils/intra.ts). When
 // the login fails, the server sends the player back with `?login_error=`,
 // explained here.
-const props = defineProps<{ label: string }>();
+const props = defineProps<{ label: string; ghost?: boolean }>();
 
 const { t } = useI18n();
 const route = useRoute();
@@ -71,7 +72,8 @@ onBeforeUnmount(() => {
         {{ t(`login.errors.${loginError}`) }}
     </p>
     <button
-        class="btn btn-primary login-button"
+        class="btn login-button"
+        :class="props.ghost ? 'btn-ghost btn-small' : 'btn-primary'"
         :disabled="leaving || cooldown > 0"
         :aria-busy="leaving"
         @click="login"

@@ -19,9 +19,9 @@ const { t } = useI18n();
 // Edits stay local until saved, and reset when the saved data changes.
 const draft = reactive({ name: "", lore: "", group: "" });
 const questDrafts = ref<
-    Record<string, { label: string; answer: string; difficulty: number }>
+    Record<string, { label: string; answer: string; difficulty: number; secret: boolean }>
 >({});
-const newQuest = reactive({ label: "", answer: "", difficulty: 1 });
+const newQuest = reactive({ label: "", answer: "", difficulty: 1, secret: false });
 const sharedKey = ref("");
 
 // The quests this NPC doesn't give yet.
@@ -92,6 +92,7 @@ async function saveQuest(key: string) {
                 label: quest.label,
                 answer: quest.answer,
                 difficulty: quest.difficulty,
+                secret: quest.secret,
             },
         ],
     });
@@ -149,6 +150,7 @@ async function addQuest() {
                         label: newQuest.label,
                         answer: newQuest.answer,
                         difficulty: newQuest.difficulty,
+                        secret: newQuest.secret,
                     },
                 ],
             },
@@ -156,7 +158,7 @@ async function addQuest() {
     });
 
     if (report) {
-        Object.assign(newQuest, { label: "", answer: "", difficulty: 1 });
+        Object.assign(newQuest, { label: "", answer: "", difficulty: 1, secret: false });
     }
 }
 
@@ -255,6 +257,10 @@ function deleteNpc() {
                             </option>
                         </select>
                     </label>
+                    <label class="check">
+                        <input v-model="questDrafts[quest.key]!.secret" type="checkbox" class="checkbox">
+                        <span>{{ t("admin.npcs.secret") }}</span>
+                    </label>
                     <div class="row">
                         <button class="btn btn-small btn-primary" :disabled="busy">{{ t("common.save") }}</button>
                         <button type="button" class="btn btn-small btn-ghost" @click="editingQuest = null">
@@ -270,6 +276,10 @@ function deleteNpc() {
                             :title="t('admin.npcs.difficultyTitle', { count: quest.difficulty })"
                         >
                             <DifficultyStars :difficulty="quest.difficulty" />
+                        </span>
+                        <span v-if="quest.secret" class="badge badge-warning" :title="t('admin.npcs.secretHint')">
+                            <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                            {{ t("secret.badge") }}
                         </span>
                         <p>{{ quest.label }}</p>
                         <p v-if="quest.sharedWith.length" class="small shared">
@@ -334,6 +344,10 @@ function deleteNpc() {
                             </option>
                         </select>
                     </label>
+                    <label class="check">
+                        <input v-model="newQuest.secret" type="checkbox" class="checkbox">
+                        <span>{{ t("admin.npcs.secret") }}</span>
+                    </label>
                     <button class="btn btn-primary save" :disabled="busy">{{ t("admin.npcs.addQuestButton") }}</button>
                 </form>
             </details>
@@ -342,6 +356,12 @@ function deleteNpc() {
 </template>
 
 <style scoped>
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .lore {
     white-space: pre-line;
 }

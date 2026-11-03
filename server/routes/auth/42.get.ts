@@ -49,13 +49,20 @@ export default defineEventHandler(async (event) => {
   // Before the game (WAITING), every 42 account joins as a player without a
   // team. Once it runs, only the people an admin added can play: anyone else
   // gets a session too, and waits on /attente until an admin adds them.
-  // Owners are always in.
+  // Owners are always in. While the game is only announced (SOON), only admins
+  // get in: anyone else is logged out and sent back to the "soon" page.
   const known = await prisma.user.findUnique({ where: { intraLogin: login } });
+  const { phase } = await getGame();
   let user = known;
 
   if (isOwner(login)) {
     user = await ensureOwner(login);
-  } else if (!known && (await getGame()).phase === "WAITING") {
+  } else if (phase === "SOON") {
+    if (known?.role !== "ADMIN") {
+      await clearUserSession(event);
+      return fail("soon");
+    }
+  } else if (!known && phase === "WAITING") {
     user = await prisma.user.create({ data: { intraLogin: login } });
     await prisma.waitingUser.deleteMany({ where: { intraLogin: login } });
   }

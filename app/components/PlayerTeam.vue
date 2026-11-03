@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const { data: team, status, refresh } = await useFetch("/api/teams/me");
 const { data: game } = useGame();
-const { t, ordinal, locale } = useI18n();
+const { t, ordinal } = useI18n();
 
 // No photo before the game starts or while it is paused.
-const locked = computed(() => game.value.phase === "WAITING" || game.value.paused);
+const locked = computed(() => game.value.phase !== "RUNNING" || game.value.paused);
 
 const showQrCode = ref(false);
 const photoInput = useTemplateRef("photoInput");
@@ -46,25 +46,27 @@ useRealtime(["team", "scores"], () => {
     }
 });
 
-// Draws a new random name for the team.
-const renaming = ref(false);
+// Points still missing before an NPC can give the final objective.
+const missingPoints = computed(() =>
+    team.value?.secret
+        ? Math.max(0, team.value.secret.threshold - (team.value.points ?? 0))
+        : 0,
+);
 
-async function rerollName() {
-    renaming.value = true;
-    error.value = "";
+const secretProgress = computed(() =>
+    team.value?.secret && team.value.secret.threshold
+        ? `${Math.min(100, ((team.value.points ?? 0) / team.value.secret.threshold) * 100)}%`
+        : "100%",
+);
 
-    try {
-        await $fetch("/api/teams/me/name", {
-            method: "POST",
-            body: { locale: locale.value },
-        });
-        await refresh();
-    } catch {
-        error.value = t("player.errors.rename");
-    } finally {
-        renaming.value = false;
-    }
-}
+// A reminder above the quests while the team can ask for the final objective
+// but hasn't been given it yet.
+const secretReady = computed(
+    () =>
+        !!team.value?.secret?.unlocked &&
+        !team.value.secret.finishedRank &&
+        !team.value.quests.some((quest) => quest.secret),
+);
 
 let targetQuestId: string | null = null;
 
@@ -174,19 +176,7 @@ function photoErrorMessage(err: unknown, fallback: string) {
             <section class="card team">
                 <div class="stack team-text">
                     <p class="eyebrow">{{ t("player.teamEyebrow") }}</p>
-                    <div class="team-name">
-                        <h1>{{ team.name }}</h1>
-                        <button
-                            v-if="!team.sandbox"
-                            class="btn btn-small btn-ghost reroll"
-                            :disabled="renaming"
-                            :title="t('player.rerollName')"
-                            :aria-label="t('player.rerollName')"
-                            @click="rerollName"
-                        >
-                            <Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" />
-                        </button>
-                    </div>
+                    <h1 class="team-name">{{ team.name }}</h1>
                     <ul class="party">
                         <li v-for="member in team.members" :key="member">
                             <span class="avatar" aria-hidden="true">
@@ -225,6 +215,46 @@ function photoErrorMessage(err: unknown, fallback: string) {
                 {{ error }}
             </p>
 
+            <!-- The final objective: locked until the team has enough points. -->
+            <section
+                v-if="team.secret"
+                class="card secret"
+                :class="{ unlocked: team.secret.unlocked, finished: team.secret.finishedRank }"
+            >
+                <Icon
+                    :name="
+                        team.secret.finishedRank
+                            ? 'solar:cup-star-bold-duotone'
+                            : team.secret.unlocked
+                              ? 'solar:crown-star-bold-duotone'
+                              : 'solar:lock-keyhole-bold-duotone'
+                    "
+                    class="secret-icon"
+                    aria-hidden="true"
+                />
+                <div class="stack secret-text">
+                    <p class="eyebrow">{{ t("secret.eyebrow") }}</p>
+                    <template v-if="team.secret.finishedRank">
+                        <h2>{{ t("secret.finishedTitle") }}</h2>
+                        <p>{{ t("secret.finishedText", { rank: ordinal(team.secret.finishedRank) }) }}</p>
+                    </template>
+                    <template v-else-if="team.secret.unlocked">
+                        <h2>{{ t("secret.unlockedTitle") }}</h2>
+                        <p>{{ t("secret.unlockedText") }}</p>
+                    </template>
+                    <template v-else>
+                        <h2>{{ t("secret.lockedTitle") }}</h2>
+                        <p>{{ t("secret.lockedText", { count: missingPoints }) }}</p>
+                        <div class="meter" role="presentation">
+                            <span :style="{ '--value': secretProgress }" />
+                        </div>
+                        <p class="muted small">
+                            {{ team.points ?? 0 }} / {{ t("player.points", { count: team.secret.threshold }) }}
+                        </p>
+                    </template>
+                </div>
+            </section>
+
             <div v-if="allDone" class="dialogue victory" role="status">
                 <span class="dialogue-speaker">{{ t("player.victorySpeaker") }}</span>
                 <p><strong>{{ t("player.victoryLine1") }}</strong></p>
@@ -248,6 +278,11 @@ function photoErrorMessage(err: unknown, fallback: string) {
                 <p>{{ t("player.citizensLine2") }}</p>
             </div>
 
+            <p v-if="secretReady" class="secret-banner" role="status">
+                <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                {{ t("secret.banner") }}
+            </p>
+
             <template v-if="team.quests.length">
                 <div class="ornament" aria-hidden="true"><Icon name="pixelarticons:sparkle" /></div>
                 <div class="grid quests">
@@ -255,10 +290,14 @@ function photoErrorMessage(err: unknown, fallback: string) {
                         v-for="(quest, index) in team.quests"
                         :key="quest.id"
                         class="card quest"
-                        :class="{ validated: quest.status === 'VALIDATED' }"
+                        :class="{ validated: quest.status === 'VALIDATED', 'quest-secret': quest.secret }"
                     >
                         <div class="quest-top">
-                            <span class="page-number">{{ t("player.page", { number: index + 1 }) }}</span>
+                            <span v-if="quest.secret" class="page-number secret-page">
+                                <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                                {{ t("secret.badge") }}
+                            </span>
+                            <span v-else class="page-number">{{ t("player.page", { number: index + 1 }) }}</span>
                             <span
                                 class="stars"
                                 :title="t('admin.npcs.difficultyTitle', { count: quest.difficulty })"
@@ -367,14 +406,63 @@ function photoErrorMessage(err: unknown, fallback: string) {
 
 /* Character sheet of the team. */
 .team-name {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
+    overflow-wrap: anywhere;
 }
 
-.reroll {
-    font-size: 1.1rem;
+/* Above the quests, while the final objective waits for an NPC. */
+.secret-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--gold);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--gold-soft) 70%, var(--surface));
+    font-weight: 600;
+}
+
+.secret-banner .ico {
+    flex-shrink: 0;
+    font-size: 1.4rem;
+    color: var(--gold);
+}
+
+/* The final objective: grey and locked, then gilded once reachable. */
+.secret {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    border-style: dashed;
+    opacity: 0.85;
+}
+
+.secret.unlocked {
+    border-style: solid;
+    border-color: var(--gold);
+    background: linear-gradient(color-mix(in srgb, var(--gold-soft) 70%, transparent), var(--surface));
+    box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 35%, transparent);
+    opacity: 1;
+}
+
+.secret-icon {
+    flex-shrink: 0;
+    font-size: 2.6rem;
+    color: var(--muted);
+}
+
+.secret.unlocked .secret-icon {
+    color: var(--gold);
+}
+
+.secret-text {
+    --gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.secret-text h2 {
+    font-size: 1.15rem;
 }
 
 .team {
@@ -472,6 +560,14 @@ function photoErrorMessage(err: unknown, fallback: string) {
 .quest {
     gap: 0.7rem;
     padding: 0.85rem;
+}
+
+.quest-secret {
+    border-color: var(--gold);
+}
+
+.secret-page {
+    color: var(--gold);
 }
 
 .quest-top {

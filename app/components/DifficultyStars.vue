@@ -12,7 +12,7 @@ defineProps<{ difficulty: number }>();
             :key="index"
             name="solar:star-bold-duotone"
             class="star"
-            :class="{ empty: index > difficulty }"
+            :class="{ faded: index > difficulty }"
             aria-hidden="true"
         />
     </span>
@@ -26,7 +26,7 @@ defineProps<{ difficulty: number }>();
     vertical-align: -0.15em;
 }
 
-.star.empty {
+.star.faded {
     opacity: 0.25;
 }
 </style>

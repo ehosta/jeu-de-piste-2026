@@ -11,6 +11,17 @@ const route = useRoute();
 
 // A pause decided from /admin shows up live.
 useRealtime(["game"], refreshGame);
+
+// While the game is only announced (SOON), only admins stay logged in: the
+// others are logged out as soon as it starts (or they come back), like the 42
+// login refuses them (server/routes/auth/42.get.ts).
+if (import.meta.client) {
+    watch(
+        () => game.value.phase === "SOON" && !!user.value && !user.value.isAdmin,
+        (kickOut) => kickOut && logout(),
+        { immediate: true },
+    );
+}
 const offline = useState("realtime-offline", () => false);
 
 async function logout() {
@@ -117,7 +128,20 @@ function stopActing() {
     </div>
 
     <div
-        v-if="user?.role && game.phase === 'WAITING'"
+        v-if="user?.isAdmin && game.phase === 'SOON'"
+        class="banner banner-waiting"
+        role="status"
+    >
+        <div class="container banner-inner">
+            <span>
+                <strong><Icon name="solar:clock-circle-bold-duotone" class="ico" aria-hidden="true" /> {{ t("header.soonTitle") }}</strong>
+                {{ t("header.soonText") }}
+            </span>
+        </div>
+    </div>
+
+    <div
+        v-else-if="user?.role && game.phase === 'WAITING'"
         class="banner banner-waiting"
         role="status"
     >

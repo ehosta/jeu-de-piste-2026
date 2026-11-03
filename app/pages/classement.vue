@@ -7,15 +7,34 @@ definePageMeta({
     },
 });
 
-const { t, ordinal } = useI18n();
+const { t, ordinal, locale } = useI18n();
 const { data, refresh } = await useFetch("/api/leaderboard");
 
 // Moves live as NPCs validate quests.
 useRealtime(["scores"], refresh);
 
+// Two rankings: by points (exp), and the final quest race (who validated a
+// secret quest first).
+const board = ref<"points" | "final">("points");
+
 // The admins' sandbox teams (only shown to admins) stay off the podium.
 const podium = computed(() =>
     (data.value?.teams ?? []).filter((team) => team.rank <= 3 && team.points && !team.sandbox),
+);
+
+// The time of day the final quest was validated.
+function clock(value: string | Date | null) {
+    return value
+        ? new Date(value).toLocaleTimeString(locale.value === "fr" ? "fr-FR" : "en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+          })
+        : "—";
+}
+
+const finalPodium = computed(() =>
+    (data.value?.finalRace ?? []).filter((team) => team.rank <= 3 && !team.sandbox),
 );
 </script>
 
@@ -28,7 +47,83 @@ const podium = computed(() =>
             </div>
         </header>
 
-        <p v-if="!data?.teams.length" class="card empty">{{ t("leaderboard.empty") }}</p>
+        <div v-if="data?.finalRace" class="switch" role="tablist">
+            <button
+                role="tab"
+                class="btn btn-small"
+                :class="board === 'points' ? 'btn-primary' : 'btn-ghost'"
+                :aria-selected="board === 'points'"
+                @click="board = 'points'"
+            >
+                <Icon name="solar:star-bold-duotone" class="ico" aria-hidden="true" />
+                {{ t("leaderboard.byPoints") }}
+            </button>
+            <button
+                role="tab"
+                class="btn btn-small"
+                :class="board === 'final' ? 'btn-primary' : 'btn-ghost'"
+                :aria-selected="board === 'final'"
+                @click="board = 'final'"
+            >
+                <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                {{ t("leaderboard.byFinal") }}
+            </button>
+        </div>
+
+        <template v-if="board === 'final' && data?.finalRace">
+            <p class="muted small">{{ t("leaderboard.finalIntro") }}</p>
+            <p v-if="!data.finalRace.length" class="card empty">{{ t("leaderboard.finalEmpty") }}</p>
+
+            <template v-else>
+                <ol v-if="finalPodium.length" class="podium" aria-hidden="true">
+                    <li
+                        v-for="team in finalPodium"
+                        :key="team.team"
+                        class="step"
+                        :class="[`step-${team.rank}`, { mine: team.mine }]"
+                    >
+                        <span class="medal">{{ ordinal(team.rank) }}</span>
+                        <strong class="step-name">{{ team.team }}</strong>
+                        <span class="step-points">{{ clock(team.at) }}</span>
+                    </li>
+                </ol>
+
+                <div class="table-wrap">
+                    <table class="table board">
+                        <thead>
+                            <tr>
+                                <th>{{ t("leaderboard.rank") }}</th>
+                                <th>{{ t("leaderboard.team") }}</th>
+                                <th class="number">{{ t("leaderboard.time") }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="team in data.finalRace"
+                                :key="team.team"
+                                :class="{ selected: team.mine, sandbox: team.sandbox }"
+                            >
+                                <td class="rank">{{ ordinal(team.rank) }}</td>
+                                <td>
+                                    <strong>{{ team.team }}</strong>
+                                    <span v-if="team.mine" class="badge badge-primary">
+                                        {{ t("leaderboard.yours") }}
+                                    </span>
+                                    <span v-if="team.sandbox" class="badge" :title="t('leaderboard.sandboxHint')">
+                                        {{ t("leaderboard.sandbox") }}
+                                    </span>
+                                </td>
+                                <td class="number points">
+                                    {{ clock(team.at) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </template>
+
+        <p v-else-if="!data?.teams.length" class="card empty">{{ t("leaderboard.empty") }}</p>
 
         <template v-else>
             <ol v-if="podium.length" class="podium" aria-hidden="true">
@@ -97,6 +192,7 @@ const podium = computed(() =>
                     }}
                 </li>
                 <li>{{ t("leaderboard.rule3") }}</li>
+                <li v-if="data?.finalRace">{{ t("leaderboard.rule4") }}</li>
             </ul>
         </details>
     </main>
@@ -105,6 +201,12 @@ const podium = computed(() =>
 <style scoped>
 .narrow-wide {
     max-width: 52rem;
+}
+
+.switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 /* The top three on steps: second, first, third. */

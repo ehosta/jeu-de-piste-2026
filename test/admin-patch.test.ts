@@ -21,6 +21,19 @@ describe('parseAdminPatch', () => {
     expect(issues({ game: { lore: 'x'.repeat(10_001) } })[0]).toMatchObject({ path: 'game.lore', code: 'tooLong' })
   })
 
+  it('sets the secret quests threshold and marks quests as secret', () => {
+    const parsed = parseAdminPatch({
+      game: { secretThreshold: 1200, phase: 'SOON' },
+      quests: [{ key: 'final', secret: true }],
+    })
+    expect(parsed.ok && parsed.patch.game).toEqual({ secretThreshold: 1200, phase: 'SOON' })
+    expect(parsed.ok && parsed.patch.quests).toEqual([{ key: 'final', secret: true }])
+
+    expect(issues({ game: { secretThreshold: -1 } })[0]).toMatchObject({ path: 'game.secretThreshold', code: 'thresholdInvalid' })
+    expect(issues({ game: { secretThreshold: 2.5 } })[0]).toMatchObject({ code: 'thresholdInvalid' })
+    expect(issues({ quests: [{ key: 'final', secret: 'yes' }] })[0]).toMatchObject({ path: 'quests[0].secret', code: 'booleanExpected' })
+  })
+
   it('accepts a full document', () => {
     const parsed = parseAdminPatch({
       wipe: ['progress'],

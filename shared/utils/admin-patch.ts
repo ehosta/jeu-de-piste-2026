@@ -25,7 +25,7 @@ export type WipeTarget = (typeof WIPE_TARGETS)[number];
 
 export const ROLES = ["ADMIN", "BOCAL", "NPC", "PLAYER"] as const satisfies Role[];
 
-export const GAME_PHASES = ["WAITING", "RUNNING"] as const satisfies GamePhase[];
+export const GAME_PHASES = ["SOON", "WAITING", "RUNNING"] as const satisfies GamePhase[];
 
 export const TEAM_QUEST_STATUSES = [
   "HIDDEN",
@@ -37,12 +37,15 @@ export const TEAM_QUEST_STATUSES = [
 ] as const satisfies TeamQuestStatus[];
 
 export interface GamePatch {
-  // Back to WAITING, the 42 accounts kept out join as players.
+  // SOON: only admins can log in, everyone else is logged out. Back to
+  // WAITING, the 42 accounts kept out join as players.
   phase?: GamePhase;
   paused?: boolean;
   pauseMessage?: string | null;
   // Null: back to the default story.
   lore?: string | null;
+  // Points a team needs before being given a secret quest (0: from the start).
+  secretThreshold?: number;
 }
 
 export type TeamPatch =
@@ -67,6 +70,8 @@ export interface QuestFields {
   answer?: string;
   // From MIN_DIFFICULTY to MAX_DIFFICULTY (shared/utils/scoring.ts).
   difficulty?: number;
+  // The final objective: only given to teams with Game.secretThreshold points.
+  secret?: boolean;
 }
 
 // Listed under an NPC, a quest is created or updated and given to this NPC
@@ -158,6 +163,7 @@ export type PatchIssueCode =
   | "newQuestFields"
   | "unknownQuest"
   | "difficultyInvalid"
+  | "thresholdInvalid"
   | "photoPathExpected"
   | "progressChanged";
 
@@ -414,6 +420,10 @@ class Parser {
       fields.difficulty = this.difficulty(raw.difficulty, `${path}.difficulty`);
     }
 
+    if (raw.secret !== undefined) {
+      fields.secret = this.boolean(raw.secret, `${path}.secret`);
+    }
+
     return fields;
   }
 
@@ -472,7 +482,7 @@ class Parser {
       return key ? { key, $delete: true } : undefined;
     }
 
-    this.keys(raw, path, ["key", "rename", "label", "answer", "difficulty"]);
+    this.keys(raw, path, ["key", "rename", "label", "answer", "difficulty", "secret"]);
     return key ? { key, ...this.questFields(raw, path) } : undefined;
   };
 
@@ -533,7 +543,7 @@ class Parser {
       return key ? { key, $delete: true } : undefined;
     }
 
-    this.keys(raw, path, ["key", "npcs", "rename", "label", "answer", "difficulty"]);
+    this.keys(raw, path, ["key", "npcs", "rename", "label", "answer", "difficulty", "secret"]);
     const quest: QuestPatch = { key: key ?? "", ...this.questFields(raw, path) };
 
     if (raw.npcs !== undefined) {
@@ -605,7 +615,7 @@ class Parser {
       return undefined;
     }
 
-    this.keys(raw, "game", ["phase", "paused", "pauseMessage", "lore"]);
+    this.keys(raw, "game", ["phase", "paused", "pauseMessage", "lore", "secretThreshold"]);
     const game: GamePatch = {};
 
     if (raw.phase !== undefined) {
@@ -628,6 +638,16 @@ class Parser {
       game.lore = null;
     } else if (raw.lore !== undefined) {
       game.lore = this.text(raw.lore, "game.lore", MAX_LORE_LENGTH, true) || null;
+    }
+
+    if (raw.secretThreshold !== undefined) {
+      if (!Number.isInteger(raw.secretThreshold) || (raw.secretThreshold as number) < 0) {
+        this.issue("game.secretThreshold", "thresholdInvalid", {
+          value: describe(raw.secretThreshold),
+        });
+      } else {
+        game.secretThreshold = raw.secretThreshold as number;
+      }
     }
 
     return game;

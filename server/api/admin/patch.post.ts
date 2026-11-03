@@ -21,6 +21,8 @@ export default defineEventHandler(async (event) => {
     });
 
     if (!dryRun) {
+      // The threshold, the secret quests or the progress may have changed.
+      await syncSecretNotifications();
       await publishEverything();
     }
 

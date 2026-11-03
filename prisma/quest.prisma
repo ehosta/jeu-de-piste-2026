@@ -46,6 +46,9 @@ model Quest {
   // From 1 to 5, set by hand: the points a quest is worth (see
   // shared/utils/scoring.ts).
   difficulty Int         @default(1)
+  // A secret quest (the final objective): given like any other, but only to a
+  // team with at least Game.secretThreshold points. Worth points too.
+  secret     Boolean     @default(false)
   teamQuest  TeamQuest[]
 }
 

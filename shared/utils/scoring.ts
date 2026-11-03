@@ -18,3 +18,20 @@ export function rankBonus(rank: number) {
 export function questPoints(difficulty: number, rank: number) {
   return (difficulty * POINTS_PER_DIFFICULTY * (100 + rankBonus(rank))) / 100;
 }
+
+// The most points a team can get from the normal quests (secret ones only open
+// once the threshold is reached), to set a threshold every team can reach:
+// without any bonus, and if it were first on every quest.
+export function maxPoints(quests: { difficulty: number; secret: boolean }[]) {
+  const normal = quests.filter((quest) => !quest.secret);
+
+  return {
+    withoutBonus: normal.reduce((sum, quest) => sum + questPoints(quest.difficulty, Infinity), 0),
+    withBonus: normal.reduce((sum, quest) => sum + questPoints(quest.difficulty, 1), 0),
+  };
+}
+
+// A team can be given the secret quests once it has this many points.
+export function hasSecretAccess(points: number, threshold: number) {
+  return points >= threshold;
+}

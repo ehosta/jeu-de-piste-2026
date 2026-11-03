@@ -65,6 +65,7 @@ export default defineEventHandler(async (event) => {
       paused: game.paused,
       pauseMessage: game.pauseMessage,
       lore: game.lore,
+      secretThreshold: game.secretThreshold,
     },
     waiting: waiting
       .filter((user) => !known.has(user.intraLogin))
@@ -117,6 +118,7 @@ export default defineEventHandler(async (event) => {
         label: quest.label,
         answer: quest.answer,
         difficulty: quest.difficulty,
+        secret: quest.secret,
         // The other NPCs giving this quest.
         sharedWith: quest.npcs
           .filter((other) => other.id !== npc.id)
@@ -127,6 +129,7 @@ export default defineEventHandler(async (event) => {
       key: quest.key,
       label: quest.label,
       difficulty: quest.difficulty,
+      secret: quest.secret,
       npcs: quest.npcs.map((npc) => npc.name),
     })),
   };

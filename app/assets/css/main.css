@@ -122,6 +122,8 @@ body {
   font-size: 1.0625rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Pixelify Sans draws its "fi" ligature as a lone "A" ("final" → "Anal"). */
+  font-variant-ligatures: no-common-ligatures;
 }
 
 @media (prefers-color-scheme: dark) {

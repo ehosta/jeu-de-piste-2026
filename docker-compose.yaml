@@ -1,6 +1,27 @@
+# `make up` builds the app and starts both, after applying the Prisma schema
+# (see Makefile). `pnpm db:up` (and the dev scripts) only start the database.
 services:
+  app:
+    build: .
+    restart: unless-stopped
+    # On the host's network, so .env and nginx work as they do without Docker.
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 127.0.0.1
+      PORT: 3010
+    volumes:
+      # Quest photos.
+      - ./.data:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-postgres}
@@ -8,7 +29,7 @@ services:
     ports:
       # Only reachable from this machine: Docker would otherwise open the port
       # to the whole network, past the firewall (ufw).
-      - "127.0.0.1:${POSTGRES_PORT:-5436}:5436"
+      - "127.0.0.1:${POSTGRES_PORT:-5436}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     # Lets `docker compose up --wait` (pnpm dev:reset, pnpm prod) wait until the

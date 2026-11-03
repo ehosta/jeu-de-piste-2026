@@ -43,6 +43,7 @@ const links = computed(() => [
     { to: "/admin/utilisateurs", label: t("admin.nav.users"), count: data.value?.users.length },
     { to: "/admin/pnj", label: t("admin.nav.npcs"), count: data.value?.npcs.length },
     { to: "/admin/photos", label: t("admin.nav.photos"), count: toReview.value },
+    { to: "/admin/stats", label: t("admin.nav.stats") },
     { to: "/admin/notifications", label: t("admin.nav.notifications") },
     { to: "/admin/lore", label: t("admin.nav.lore") },
     { to: "/admin/import", label: t("admin.nav.import") },
