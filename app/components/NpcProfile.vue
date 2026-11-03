@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The NPC's own card: the name the players see (editable) and the quests they
-// give, with the NPCs they share them with.
+// give, with the NPCs they share them with (shared quests, their group).
 const { data: npc, refresh } = await useFetch("/api/npc/me");
 const { t } = useI18n();
 
@@ -8,6 +8,13 @@ const editing = ref(false);
 const name = ref("");
 const saving = ref(false);
 const error = ref("");
+
+// Quests added or shared by an admin, another NPC renamed…
+useRealtime(["npc"], () => {
+    if (!editing.value) {
+        refresh();
+    }
+});
 
 function startEditing() {
     name.value = npc.value?.name ?? "";
@@ -51,21 +58,29 @@ async function save() {
         <div v-else class="row name-row">
             <h2>{{ npc.name }}</h2>
             <button class="btn btn-small btn-ghost" @click="startEditing">
-                ✎ {{ t("npcProfile.rename") }}
+                <Icon name="pixelarticons:edit" class="ico" aria-hidden="true" /> {{ t("npcProfile.rename") }}
             </button>
         </div>
         <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
         <p class="muted small">{{ t("npcProfile.nameHint") }}</p>
 
         <h3>{{ t("npcProfile.questsTitle") }}</h3>
+        <p v-if="npc.group" class="small shared">
+            <Icon name="solar:users-group-rounded-bold-duotone" class="ico" aria-hidden="true" />
+            {{
+                npc.group.others.length
+                    ? t("npcProfile.group", { name: npc.group.name, others: npc.group.others.join(", ") })
+                    : t("npcProfile.groupAlone", { name: npc.group.name })
+            }}
+        </p>
         <p v-if="!npc.quests.length" class="muted small">{{ t("npcProfile.noQuest") }}</p>
         <ul v-else class="quests">
             <li v-for="quest in npc.quests" :key="quest.id" class="quest">
-                <span class="stars">{{ stars(quest.difficulty) }}</span>
+                <span class="stars"><DifficultyStars :difficulty="quest.difficulty" /></span>
                 <p>{{ quest.label }}</p>
                 <p class="muted small">{{ t("admin.npcs.answerShort", { answer: quest.answer }) }}</p>
                 <p v-if="quest.sharedWith.length" class="small shared">
-                    ⇄ {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
+                    <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{ t("admin.npcs.sharedWith", { names: quest.sharedWith.join(", ") }) }}
                 </p>
             </li>
         </ul>

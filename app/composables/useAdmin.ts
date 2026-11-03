@@ -94,7 +94,7 @@ export function describeIssue(issue: PatchIssue, t: Translate) {
   return t(`patch.${issue.code}`, issue.params);
 }
 
-const ENTITIES = ["teams", "users", "npcs", "quests", "progress"] as const;
+const ENTITIES = ["teams", "users", "npcs", "npcGroups", "quests", "progress"] as const;
 const ACTIONS = ["created", "updated", "deleted"] as const;
 
 // "2 groupes créés, 1 quête supprimée", for toasts and import previews.

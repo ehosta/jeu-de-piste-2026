@@ -7,10 +7,28 @@ model Npc {
   name String
   lore String
 
+  // Solo when null. An NPC also gives and reviews every quest of the other
+  // NPCs of their group (see npcQuestsWhere in server/utils/npc.ts).
+  groupId String?   @db.Uuid
+  group   NpcGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
   // A quest can be shared: any of its NPCs can give and review it.
   quests          Quest[]
   givenQuests     TeamQuest[] @relation("GivenBy")
   validatedQuests TeamQuest[] @relation("ValidatedBy")
+}
+
+// NPCs who give the same quests, e.g. the bocal's or the admins' NPCs: anyone
+// in the group can give and review the quests of the others. Quests stay
+// attached to the NPC who has them (an NPC leaving the group takes theirs
+// along). A group left without NPC is deleted (server/utils/admin-patch.ts).
+model NpcGroup {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  name String @unique
+  npcs Npc[]
+
+  createdAt DateTime @default(now())
 }
 
 model Quest {
@@ -28,6 +46,9 @@ model Quest {
   // From 1 to 5, set by hand: the points a quest is worth (see
   // shared/utils/scoring.ts).
   difficulty Int         @default(1)
+  // A secret quest (the final objective): given like any other, but only to a
+  // team with at least Game.secretThreshold points. Worth points too.
+  secret     Boolean     @default(false)
   teamQuest  TeamQuest[]
 }
 

@@ -27,8 +27,10 @@ Pendant une incarnation, le bandeau propose **Gérer ce compte** (page Utilisate
 | Vue d'ensemble | Chiffres clés, état de la partie (lancer, pause, revenir en attente), « se mettre dans la peau de… », joueurs à placer, grille de progression modifiable |
 | Groupes | Générer des groupes au hasard, placer les joueurs sans groupe, créer, renommer, supprimer (seul ou en masse), gérer les membres, QR codes |
 | Utilisateurs | Ajouter des logins en masse, changer rôle et groupe, suppression et actions groupées |
-| PNJ & quêtes | Créer et modifier les PNJ (nom, lore) et leurs quêtes, partager une quête existante avec un autre PNJ |
+| PNJ & quêtes | Créer et modifier les PNJ (nom, lore, groupe de PNJ) et leurs quêtes, partager une quête existante avec un autre PNJ, renommer ou dissoudre un groupe de PNJ |
 | Import JSON | Éditer, simuler et appliquer un document JSON, exporter les données |
+| Messages | Envoyer un message sur l'écran des joueurs, des PNJ ou d'un groupe (« Rendez-vous dans 15 min en salle de conférence ! »), le retirer, voir combien d'appareils sont connectés en direct. Le bocal voit les messages affichés |
+| Lore | Réécrire l'histoire du jeu affichée par le bouton « Lore » du header (pour tout le monde, même sans être connecté), avec un aperçu. Elle change en direct sur tous les écrans. « Revenir au texte d'origine » remet celle de `app/i18n`, affichée dans la langue de chacun. Le bocal la lit seulement |
 | Maintenance | Réappliquer le pré-remplissage, remises à zéro et suppressions de masse |
 
 L'interface est en **français et en anglais** (sélecteur FR/EN du header, retenu dans un cookie ; par défaut, la langue du navigateur).
@@ -39,7 +41,7 @@ L'interface est en **français et en anglais** (sélecteur FR/EN du header, rete
 
 ```json
 {
-  "game": { "phase": "WAITING", "paused": false, "pauseMessage": null },
+  "game": { "phase": "SOON", "paused": false, "pauseMessage": null },
   "users": [{ "login": "ehosta", "role": "ADMIN" }],
   "npcs": [
     {
@@ -58,13 +60,15 @@ L'interface est en **français et en anglais** (sélecteur FR/EN du header, rete
 
 ## Déroulement de la partie
 
-La partie a deux phases, changées depuis la vue d'ensemble (carte « État de la partie ») :
+La partie a trois phases, changées depuis la vue d'ensemble (carte « État de la partie ») :
 
 | Phase | Connexion d'un compte 42 inconnu | Joueurs et PNJ |
 | --- | --- | --- |
+| **Bientôt** (`SOON`) | **Refusé** : déconnecté et renvoyé sur la page « bientôt ». Seuls les admins entrent (bouton « Admin ? ») | Déconnectés dès le passage en « bientôt » |
 | **En attente** (`WAITING`) | Il rejoint les joueurs **sans groupe** | Voient leur groupe s'ils en ont un, mais ne peuvent rien faire (`423`). Bandeau « la partie n'a pas encore commencé » |
 | **En cours** (`RUNNING`) | Il est **bloqué** sur **/attente** jusqu'à ce qu'un admin le place | Jouent normalement (sauf pendant une pause) |
 
+0. **Bientôt** : le site n'affiche que « bientôt » pendant que tu prépares tout (PNJ, quêtes). Connecte-toi avec le bouton « Admin ? », puis **Ouvrir les inscriptions**.
 1. **Avant** : les participants se connectent et apparaissent dans « À placer dans un groupe ».
 2. **Former les groupes** (page Groupes) :
    - **Générer des groupes** : choisis la taille visée (2 à 8) et, s'il reste des joueurs, « groupes plus petits » (jamais plus que la taille) ou « groupes plus grands » (jamais moins). Les tailles des groupes diffèrent d'au plus un. L'aperçu montre les groupes et leurs noms tirés au sort (adjectif + nom magie / RPG / dev / 42, accordés en français, en anglais si l'interface est en anglais) : remélange, change les noms ou modifie-les à la main, puis crée-les. Les groupes existants ne bougent pas.
@@ -73,6 +77,19 @@ La partie a deux phases, changées depuis la vue d'ensemble (carte « État de l
 4. **Retardataires** : ils sont bloqués et apparaissent dans « À placer » avec le badge « Bloqué ». Place-les dans un groupe, forme-en un nouveau avec eux, ou ajoute-les sans groupe.
 
 « Revenir en attente » fait rejoindre aux comptes bloqués les joueurs sans groupe.
+
+### Quêtes secrètes (objectif final)
+
+Coche **Quête secrète** sur une quête (page PNJ & quêtes) : elle se donne et se valide comme une autre, et rapporte des points, mais un PNJ ne peut la donner qu'à un groupe qui a au moins le **seuil d'exp** (carte « Quêtes secrètes » de la vue d'ensemble). À côté du seuil s'affichent l'exp max des quêtes normales sans bonus et avec tous les bonus : garde le seuil sous l'exp max sans bonus pour que tout le monde ait une chance. Le seuil se change à tout moment ; 0 ouvre les quêtes secrètes dès le départ.
+
+- Les joueurs voient sur leur page combien de points il leur manque, puis « Vous pouvez accomplir l'objectif final ! » dès qu'ils ont le seuil.
+- Au scan, un PNJ voit la quête secrète grisée tant que le groupe n'a pas le seuil.
+- Dès qu'un groupe atteint le seuil (après une validation, ou parce que tu as baissé le seuil), il reçoit une notification urgente (envoyée par « jeu », visible dans la page Notifications) et un bandeau au-dessus de ses quêtes l'invite à aller voir un PNJ. Si tu remontes le seuil au-dessus de ses points, la notification est retirée et il redevient bloqué au scan. Tous les écrans (joueurs, scans des PNJ) se mettent à jour en direct quand tu changes le seuil.
+- Le classement a deux onglets : **Exp** (les points) et **Quête finale** (les groupes qui ont validé une quête secrète, avec l'heure de validation, du premier au dernier).
+
+### Achievements
+
+La page **Achievements** rassemble les stats de la partie pour les annoncer à la fin : quêtes validées, taux de remplissage du Campudex, exp distribuée, temps moyen par quête (du don à la validation) et de validation par les PNJ, durée de la partie, records (quête la plus rapide, la plus longue, la plus coriace, heure de pointe, meilleur photographe, PNJ le plus sollicité…), puis des tableaux par difficulté, quête, groupe et PNJ. Seuls les vrais groupes comptent.
 
 ### Vérifier les photos
 
@@ -92,7 +109,8 @@ Le filtre **Validées par** ne montre que les photos validées par un PNJ, pour 
 Tout le monde dans le jeu (joueurs, PNJ, admins) a deux onglets sous le header, en plus de sa page : **Classement** et **Journal**. Ils se mettent à jour tout seuls.
 
 - **Quêtes partagées** : une quête peut être donnée par plusieurs PNJ (« Partager une quête existante » sur la carte d'un PNJ). N'importe lequel d'entre eux peut la donner puis valider la photo ; le joueur voit qui la lui a confiée et les autres PNJ qui peuvent la valider, le Journal indique le PNJ qui a validé.
-- **Noms** : un PNJ peut changer son nom depuis sa page d'accueil ; un joueur peut tirer un nouveau nom de groupe au hasard (🎲 sur la page du groupe).
+- **Groupes de PNJ** : par défaut un PNJ est solo. Mis dans un groupe (champ « Groupe de PNJ » sur sa carte : un nouveau nom crée le groupe, vide le rend solo), il donne et valide **toutes les quêtes des autres PNJ du groupe**, y compris celles ajoutées plus tard. Pratique pour que n'importe qui du bocal ou des admins puisse donner les quêtes du groupe. Chaque quête reste rattachée à son PNJ : un PNJ qui quitte le groupe emporte ses quêtes, un PNJ supprimé laisse les siennes à un autre membre. La page PNJ & quêtes affiche chaque groupe dans un encadré (renommer, dissoudre : chacun redevient solo et garde ses quêtes) ; les PNJ solos n'ont rien de plus.
+- **Noms** : un PNJ peut changer son nom depuis sa page d'accueil. Les noms de groupe ne se changent que depuis l'admin (page Groupes).
 - **Difficulté** : chaque quête a une difficulté de 1 à 5 ★, réglée à la main (carte du PNJ dans « PNJ & quêtes », `difficulty` dans le JSON et dans `prefill.json`). Par défaut : 1.
 - **Points** (`shared/utils/scoring.ts`) : une quête validée rapporte **100 points par niveau de difficulté**, plus un bonus selon l'ordre de validation (date de validation) : **+50 %** pour le premier groupe, +40 % pour le deuxième, … +10 % pour le cinquième, plus rien ensuite. Exemple : une quête ★★★ rapporte 450 points au premier groupe, 420 au deuxième, 300 à partir du sixième.
 - **Classement** : par points ; à égalité, le groupe arrivé là en premier passe devant. Le groupe « Admins » ne prend jamais la place d'un vrai groupe : il n'apparaît qu'aux admins, marqué « test », avec le rang qu'il aurait (pareil dans le Journal).
@@ -110,6 +128,20 @@ Sur la page du groupe :
 
 La pause ne concerne que la phase « en cours ». En pause, les PNJ ne peuvent plus scanner (ni donner, ni valider) et les joueurs ne peuvent plus envoyer de photo (`423`). Tout le monde voit un bandeau avec le message choisi. Un admin qui se met dans la peau d'un joueur ou d'un PNJ n'est pas bloqué, pour pouvoir tester pendant la pause. Avant le lancement, en revanche, personne ne peut scanner ni envoyer de photo, même un admin incarné ; l'accueil des PNJ et la page de scan affichent que la partie n'a pas commencé.
 
+## Messages
+
+**Tableau de bord → Messages** affiche un message sur les écrans, sans que personne ait à recharger la page :
+
+- **Pour** : tout le monde, les joueurs, les PNJ, ou un seul groupe. Un admin qui joue un joueur ou un PNJ reçoit les messages de ce rôle ; sinon, seulement ceux envoyés à tout le monde.
+- **Reste affiché** : 5 min à 2 h, ou jusqu'à ce que tu le retires. **Retirer** l'enlève tout de suite de tous les écrans.
+- **Urgent** : le message s'affiche en grand devant la page, le téléphone vibre, et il reste jusqu'à ce que la personne appuie sur « Compris ». Sinon, une bulle apparaît quelques secondes.
+
+Dans tous les cas, le message reste dans le menu 🔔 du header (avec le nombre de non lus) tant qu'il est affiché. Chacun peut le masquer sur son appareil. Quelqu'un qui se connecte après l'envoi le voit aussi (en grand s'il est urgent).
+
+C'est indépendant de la **pause** : la pause bloque le jeu et affiche un bandeau, un message ne bloque rien. Pour « Pause goûter, reprise à 16 h », combine les deux.
+
+Le compteur « appareils connectés en direct » permet de vérifier que le temps réel passe bien (voir [DEPLOY.md](DEPLOY.md)).
+
 ## Format JSON
 
 Toutes les modifications de l'admin, y compris les boutons des pages, passent par un même document, un peu comme le corps d'une énorme requête `PATCH` :
@@ -125,8 +157,12 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
   // Vide d'abord des collections entières. Les admins ne sont jamais touchés.
   "wipe": ["progress", "quests", "npcs", "teams", "players"],
 
-  // game : phase (WAITING ou RUNNING ; revenir à WAITING fait entrer les
-  // comptes bloqués comme joueurs sans groupe), paused, pauseMessage
+  // game : phase (SOON, WAITING ou RUNNING ; SOON n'accepte que les admins ;
+  // revenir à WAITING fait entrer les
+  // comptes bloqués comme joueurs sans groupe), paused, pauseMessage,
+  // lore (l'histoire du bouton « Lore », 10 000 caractères max ; null ou vide :
+  // le texte d'origine), secretThreshold (points pour
+  // recevoir une quête secrète)
   "game": { "phase": "RUNNING", "paused": false, "pauseMessage": null },
 
   "teams": [
@@ -157,7 +193,17 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
       ]
     },
     // La même quête sous un deuxième PNJ : elle est partagée entre eux.
-    { "login": "bwayne", "name": "Dame Brume", "quests": [{ "key": "cantine" }] }
+    { "login": "bwayne", "name": "Dame Brume", "quests": [{ "key": "cantine" }] },
+    // group : groupe de PNJ (créé s'il n'existe pas), null pour redevenir solo.
+    { "login": "ckent", "group": "Bocal" }
+  ],
+
+  // Groupes de PNJ : npcs met ces PNJ dans le groupe (les autres membres
+  // restent), rename le renomme, $delete rend tous ses membres solos.
+  "npcGroups": [
+    { "name": "Bocal", "npcs": ["dprince", "bwayne"] },
+    { "name": "Admins", "rename": "Les Admins" },
+    { "name": "Ancien groupe", "$delete": true }
   ],
 
   // Les quêtes peuvent aussi être listées à part : npcs remplace la liste des
@@ -165,6 +211,9 @@ Toutes les modifications de l'admin, y compris les boutons des pages, passent pa
   "quests": [
     { "key": "cafe", "npcs": ["dprince", "bwayne"], "label": "…", "answer": "Les machines à café" },
     { "key": "cantine", "rename": "cantine-afk" },
+    // secret : quête secrète, donnée seulement aux groupes qui ont
+    // game.secretThreshold points.
+    { "key": "finale", "npcs": ["dprince"], "label": "…", "answer": "…", "difficulty": 5, "secret": true },
     { "key": "vieille-quete", "$delete": true }
   ],
 
@@ -187,7 +236,7 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 
 ### Ordre d'application
 
-`wipe` → `game` → `teams` → `users` → membres des `teams` → `npcs` (et leurs quêtes) → `quests` → `progress`. Un élément peut donc utiliser ce qu'une section précédente a créé (un utilisateur peut rejoindre un groupe créé dans le même document).
+`wipe` → `game` → `teams` → `users` → membres des `teams` → `npcs` (et leurs quêtes) → `npcGroups` → `quests` → `progress`. Un élément peut donc utiliser ce qu'une section précédente a créé (un utilisateur peut rejoindre un groupe créé dans le même document).
 
 ### Règles
 
@@ -200,6 +249,9 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 | PNJ sur un compte admin ou bocal | Le compte garde son rôle (et son groupe), avec en plus un profil PNJ |
 | `npcs` avec `$delete` | Supprime le profil PNJ et ses quêtes non partagées, le compte redevient joueur sans groupe (un admin reste admin et récupère un PNJ vierge) |
 | Quête qui n'a plus aucun PNJ à la fin du patch | Supprimée, avec sa progression |
+| PNJ d'un groupe supprimé | Ses quêtes passent à un autre PNJ du groupe au lieu d'être supprimées |
+| Groupe de PNJ vide à la fin du patch | Supprimé (un groupe d'un seul PNJ reste) |
+| `npcGroups` inconnu sans `npcs` | Erreur (`rename` ou `$delete` d'un groupe qui n'existe pas) |
 | Admin ou bocal sans groupe ou sans PNJ à la fin du patch | Il rejoint le groupe « Admins » (ou « Bocal ») et son PNJ est (re)créé |
 | Supprimer ou rétrograder un propriétaire (`NUXT_ADMIN_LOGINS`) | Erreur |
 | Nouvelle quête sans PNJ, `label` ou `answer` | Erreur |
@@ -218,13 +270,15 @@ Le vrai fichier ne peut pas contenir de commentaires : ils ne sont là que pour 
 | Route | Description |
 | --- | --- |
 | `GET /api/admin/state` | Tout ce qu'affichent les pages admin (admin et bocal) |
+| `GET /api/admin/stats` | Les stats de la page Achievements (admin et bocal) |
 | `POST /api/admin/patch` (`?dryRun=1`) | Applique un document (`400` avec `data.issues` : `[{ path, code, params }]`, traduits par l'interface : `patch.<code>` dans `app/i18n`) |
 | `POST /api/admin/prefill` | Réapplique `prefill.json`, sans sa partie `game` |
 | `GET /api/admin/export` | Les données actuelles, au format du document |
 | `POST /api/admin/act-as` `{ role, teamId?, npcId?, userId? }` | Jouer un joueur d'un groupe (`PLAYER`), un PNJ (`NPC`), incarner un compte (`USER`), ou redevenir admin (`ADMIN`). Le bocal : seulement son groupe et son PNJ |
 | `GET /api/admin/views` | Ce que propose le sélecteur de vue : groupe et PNJ de l'admin, groupes, PNJ, comptes (pour le bocal : son groupe et son PNJ) |
 | `GET /api/game` | `{ phase, paused, pauseMessage }`, pour tout le monde |
-| `GET /api/leaderboard` | Classement (`questCount`, groupes avec `rank`, `points`, `validated`, `mine`), pour tout le monde dans le jeu |
+| `GET/POST/DELETE /api/admin/notifications` | Messages affichés sur les écrans (voir [ARCHITECTURE.md](ARCHITECTURE.md#notifications)) |
+| `GET /api/leaderboard` | Classement (`questCount`, groupes avec `rank`, `points`, `validated`, `mine`) et course finale (`finalRace` : `rank`, `at` (heure de validation), null sans quête secrète), pour tout le monde dans le jeu |
 | `GET /api/logs` | Validations, les plus récentes d'abord (300 max), pour tout le monde dans le jeu |
 
 Le format est validé par `shared/utils/admin-patch.ts`, utilisé aussi par l'éditeur pour signaler les erreurs pendant la frappe, et appliqué par `server/utils/admin-patch.ts`.

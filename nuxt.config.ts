@@ -16,10 +16,29 @@ export default defineNuxtConfig({
     "nuxt-auth-utils",
   ],
   css: ["~/assets/css/main.css"],
+  // Flat two-tone icons from Solar (bold duotone) in place of emojis, and UI
+  // icons from Pixelarticons (pixel art), both in the text's color and installed
+  // (@iconify-json/*). The icons found in the code are bundled with the app;
+  // any other (e.g. one added while `nuxt dev` runs) comes from our own server,
+  // never from the Iconify API.
+  icon: {
+    provider: "server",
+    serverBundle: { collections: ["solar", "pixelarticons"] },
+    fallbackToApi: false,
+    clientBundle: { scan: true, sizeLimitKb: 512 },
+  },
   app: {
     head: {
       htmlAttrs: { lang: "fr" },
       title: "Campudex",
+      // The Campudex camera in pixel art (public/favicon.*), and the leather of
+      // the header for the phone's browser bar.
+      link: [
+        { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+        { rel: "icon", type: "image/x-icon", href: "/favicon.ico", sizes: "48x48" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      ],
+      meta: [{ name: "theme-color", content: "#2c1d13" }],
     },
   },
   vite: tunnelHostname
@@ -34,14 +53,24 @@ export default defineNuxtConfig({
       }
     : {},
   nitro: {
+    // Live updates on /_ws (server/routes/_ws.ts).
+    experimental: { websocket: true },
     storage: {
       // Quest photos (server/utils/photo.ts), next to the other local data.
       photos: { driver: "fs", base: "./.data/photos" },
     },
   },
   compatibilityDate: "2025-07-15",
-  devtools: { enabled: true },
+  // Not when the dev server is public through the tunnel: DevTools can read
+  // and run things on this machine.
+  devtools: { enabled: !tunnelHostname },
   runtimeConfig: {
+    // A stolen session cookie stops working after a week (it never did).
+    session: {
+      maxAge: 60 * 60 * 24 * 7,
+      // Set by NUXT_SESSION_PASSWORD.
+      password: "",
+    },
     databaseUrl: "",
     adminLogins: "",
     oauth2: {

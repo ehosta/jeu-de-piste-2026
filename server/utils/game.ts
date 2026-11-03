@@ -6,17 +6,20 @@ export async function getGame() {
       phase: "WAITING" as const,
       paused: false,
       pauseMessage: null,
+      lore: null,
+      secretThreshold: 0,
+      startedAt: null,
     }
   );
 }
 
-// Before the game starts, NPCs and players can't change anything, admins
+// Before the game starts (SOON, WAITING), NPCs and players can't change anything, admins
 // acting as one included. While it is paused (from /admin), admins acting as
 // one still can, to test or fix things meanwhile.
 export async function requireGameRunning(actor: Actor) {
   const game = await getGame();
 
-  if (game.phase === "WAITING") {
+  if (game.phase !== "RUNNING") {
     throw createError({ statusCode: 423, statusMessage: "Game not started" });
   }
 

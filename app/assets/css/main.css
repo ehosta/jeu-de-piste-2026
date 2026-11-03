@@ -6,11 +6,30 @@
    Pages work from phones (players showing their QR code, NPCs scanning) to
    large screens (admins), so layouts stack by default and spread out from the
    breakpoints below. Fonts are resolved by @nuxt/fonts from the families
-   named here. */
+   named here, except the pixel one. */
+
+/* VT323 (SIL Open Font License), served from public/fonts: its letters are
+   small for their size, so it is scaled up to sit with the other fonts. */
+@font-face {
+  font-family: "Campudex Pixel";
+  font-display: swap;
+  src: url("/fonts/vt323-latin.woff2") format("woff2");
+  size-adjust: 135%;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Campudex Pixel";
+  font-display: swap;
+  src: url("/fonts/vt323-latin-ext.woff2") format("woff2");
+  size-adjust: 135%;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   --font-body: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Cinzel", Georgia, serif;
-  --font-pixel: "Pixelify Sans", var(--font-body);
+  --font-pixel: "Campudex Pixel", var(--font-body);
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
   --bg: #eadcbf;
@@ -52,6 +71,12 @@
   --radius: 6px;
   --radius-sm: 4px;
   --header-height: 3.75rem;
+
+  /* Pixelarticons drawn by CSS (::before / ::after), in the text's color:
+     `background: currentColor; mask: var(--glyph-…)`, see .glyph below. */
+  --glyph-sparkle: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M11 1h2v4h-2zm0 22h2v-4h-2zM9 5h2v4H9zm0 14h2v-4H9zm4-14h2v4h-2zm0 14h2v-4h-2zM5 9h4v2H5zm14 0h-4v2h4zM1 11h4v2H1zm22 0h-4v2h4zM5 13h4v2H5zm14 0h-4v2h4z'/></svg>");
+  --glyph-play: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z'/></svg>");
+  --glyph-chevron-down: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='currentColor' d='M13 16h-2v-2h2zm-2-2H9v-2h2zm4 0h-2v-2h2zm-6-2H7v-2h2zm8 0h-2v-2h2zM7 10H5V8h2zm12 0h-2V8h2z'/></svg>");
 
   color-scheme: light;
 }
@@ -185,6 +210,26 @@ code {
 ::selection {
   background: var(--gold-soft);
   color: var(--text);
+}
+
+/* Icons (<Icon class="ico">, see nuxt.config.ts), a bit larger than the
+   text and sitting on its line. */
+.ico {
+  flex-shrink: 0;
+  font-size: 1.25em;
+  vertical-align: -0.25em;
+}
+
+/* Ornaments drawn in CSS with a --glyph-* icon. */
+.eyebrow::before,
+.dialogue::after,
+summary::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask: var(--glyph) center / contain no-repeat;
 }
 
 /* Layout */
@@ -326,7 +371,10 @@ code {
 }
 
 .eyebrow::before {
-  content: "✦ ";
+  --glyph: var(--glyph-sparkle);
+
+  margin-right: 0.4em;
+  vertical-align: -0.15em;
 }
 
 /* A flourish between two sections. */
@@ -398,7 +446,8 @@ code {
 }
 
 .dialogue::after {
-  content: "▼";
+  --glyph: var(--glyph-chevron-down);
+
   position: absolute;
   right: 0.9rem;
   bottom: 0.35rem;
@@ -806,7 +855,11 @@ code {
   }
 
   .select option::checkmark {
-    content: "✦";
+    content: "";
+    width: 0.9em;
+    height: 0.9em;
+    background: currentColor;
+    mask: var(--glyph-sparkle) center / contain no-repeat;
     order: 1;
     margin-left: auto;
     color: var(--gold);
@@ -914,7 +967,8 @@ summary::-webkit-details-marker {
 }
 
 summary::before {
-  content: "▶";
+  --glyph: var(--glyph-play);
+
   flex-shrink: 0;
   color: var(--gold);
   font-size: 0.7em;

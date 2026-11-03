@@ -2,7 +2,7 @@
 import type { GamePhase, TeamQuestStatus } from "~~/prisma/generated/enums";
 import type { ActAsTarget } from "~/composables/useActAs";
 
-const { data, refresh } = await useAdminState();
+const { data } = await useAdminState();
 const { busy, apply, toast } = useAdminPatch();
 const { actAs: switchTo } = useActAs();
 const canEdit = useCanEdit();
@@ -17,20 +17,25 @@ const otherUsers = computed(() =>
     (data.value?.users ?? []).filter((user) => user.login !== data.value?.me),
 );
 
-// The overview follows the game live.
-let poll: ReturnType<typeof setInterval> | undefined;
-
-onMounted(() => {
-    poll = setInterval(() => {
-        if (document.visibilityState === "visible" && !busy.value) {
-            refresh();
-        }
-    }, 15_000);
-});
-
-onBeforeUnmount(() => clearInterval(poll));
-
 const quests = computed(() => data.value?.quests ?? []);
+
+// The points needed for the secret quests (the final objective), next to the
+// most a team can get from the normal ones, so every team has a chance.
+const secretThreshold = ref(data.value?.game.secretThreshold ?? 0);
+const secretQuests = computed(() => quests.value.filter((quest) => quest.secret).length);
+const reachable = computed(() => maxPoints(quests.value));
+
+watch(
+    () => data.value?.game.secretThreshold,
+    (value) => (secretThreshold.value = value ?? 0),
+);
+
+function saveThreshold() {
+    return apply(
+        { game: { secretThreshold: secretThreshold.value } },
+        { success: t("admin.overview.secret.saved", { count: secretThreshold.value }) },
+    );
+}
 
 const stats = computed(() => {
     const users = data.value?.users ?? [];
@@ -89,19 +94,28 @@ function setPaused(paused: boolean) {
     );
 }
 
+const PHASE_MESSAGES = {
+    SOON: { confirm: "admin.overview.game.soonConfirm", success: "admin.overview.game.soonDone" },
+    WAITING: {
+        confirm: "admin.overview.game.backConfirm",
+        success: "admin.overview.game.backDone",
+    },
+    RUNNING: {
+        confirm: "admin.overview.game.startConfirm",
+        success: "admin.overview.game.started",
+    },
+} as const;
+
 function setPhase(phase: GamePhase) {
+    // Opening the registrations isn't going back.
+    const messages =
+        phase === "WAITING" && data.value?.game.phase === "SOON"
+            ? { confirm: "admin.overview.game.openConfirm", success: "admin.overview.game.opened" } as const
+            : PHASE_MESSAGES[phase];
+
     return apply(
         { game: { phase } },
-        {
-            confirm:
-                phase === "RUNNING"
-                    ? t("admin.overview.game.startConfirm")
-                    : t("admin.overview.game.backConfirm"),
-            success:
-                phase === "RUNNING"
-                    ? t("admin.overview.game.started")
-                    : t("admin.overview.game.backDone"),
-        },
+        { confirm: t(messages.confirm), success: t(messages.success) },
     );
 }
 
@@ -129,7 +143,7 @@ async function actAs(target: ActAsTarget) {
             <span
                 class="badge"
                 :class="
-                    data.game.phase === 'WAITING'
+                    data.game.phase !== 'RUNNING'
                         ? 'badge-info'
                         : data.game.paused
                           ? 'badge-warning'
@@ -137,11 +151,9 @@ async function actAs(target: ActAsTarget) {
                 "
             >
                 {{
-                    data.game.phase === "WAITING"
-                        ? t("admin.overview.phaseBadge.WAITING")
-                        : data.game.paused
-                          ? t("admin.overview.phaseBadge.paused")
-                          : t("admin.overview.phaseBadge.RUNNING")
+                    data.game.phase === "RUNNING" && data.game.paused
+                        ? t("admin.overview.phaseBadge.paused")
+                        : t(`admin.overview.phaseBadge.${data.game.phase}`)
                 }}
             </span>
         </header>
@@ -161,6 +173,10 @@ async function actAs(target: ActAsTarget) {
             >
                 <h2>{{ t("admin.overview.game.title") }}</h2>
                 <ol class="phases">
+                    <li :class="{ current: data.game.phase === 'SOON' }">
+                        <strong>{{ t("admin.overview.game.soon") }}</strong>
+                        <span class="muted small">{{ t("admin.overview.game.soonText") }}</span>
+                    </li>
                     <li :class="{ current: data.game.phase === 'WAITING' }">
                         <strong>{{ t("admin.overview.game.waiting") }}</strong>
                         <span class="muted small">{{ t("admin.overview.game.waitingText") }}</span>
@@ -171,13 +187,23 @@ async function actAs(target: ActAsTarget) {
                     </li>
                 </ol>
                 <button
-                    v-if="data.game.phase === 'WAITING' && canEdit"
+                    v-if="data.game.phase === 'SOON' && canEdit"
                     class="btn btn-primary"
                     :disabled="busy"
-                    @click="setPhase('RUNNING')"
+                    @click="setPhase('WAITING')"
                 >
-                    {{ t("admin.overview.game.start") }}
+                    <Icon name="solar:lock-keyhole-unlocked-bold-duotone" class="ico" aria-hidden="true" />
+                    {{ t("admin.overview.game.open") }}
                 </button>
+                <div v-else-if="data.game.phase === 'WAITING' && canEdit" class="actions">
+                    <button class="btn btn-primary" :disabled="busy" @click="setPhase('RUNNING')">
+                        <Icon name="solar:flag-bold-duotone" class="ico" aria-hidden="true" />
+                        {{ t("admin.overview.game.start") }}
+                    </button>
+                    <button class="btn btn-ghost" :disabled="busy" @click="setPhase('SOON')">
+                        {{ t("admin.overview.game.backToSoon") }}
+                    </button>
+                </div>
                 <template v-else-if="data.game.phase === 'RUNNING' && canEdit">
                     <label class="field">
                         <span>{{ t("admin.overview.game.pauseMessage") }}</span>
@@ -210,6 +236,57 @@ async function actAs(target: ActAsTarget) {
                         </button>
                     </div>
                 </template>
+            </section>
+
+            <section class="card">
+                <h2>
+                    <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                    {{ t("admin.overview.secret.title") }}
+                </h2>
+                <p class="muted small">
+                    {{
+                        secretQuests
+                            ? t("admin.overview.secret.text", { count: secretQuests })
+                            : t("admin.overview.secret.none")
+                    }}
+                </p>
+                <form class="row" @submit.prevent="saveThreshold">
+                    <label class="field grow">
+                        <span>{{ t("admin.overview.secret.threshold") }}</span>
+                        <input
+                            v-model.number="secretThreshold"
+                            class="input"
+                            type="number"
+                            min="0"
+                            step="10"
+                            required
+                            :disabled="!canEdit"
+                        >
+                    </label>
+                    <button
+                        v-if="canEdit"
+                        class="btn btn-primary threshold-save"
+                        :disabled="busy || secretThreshold === data.game.secretThreshold"
+                    >
+                        {{ t("common.save") }}
+                    </button>
+                </form>
+                <dl class="reachable small">
+                    <div>
+                        <dt>{{ t("admin.overview.secret.maxWithout") }}</dt>
+                        <dd>{{ t("player.points", { count: reachable.withoutBonus }) }}</dd>
+                    </div>
+                    <div>
+                        <dt>{{ t("admin.overview.secret.maxWith") }}</dt>
+                        <dd>{{ t("player.points", { count: reachable.withBonus }) }}</dd>
+                    </div>
+                </dl>
+                <p
+                    v-if="secretThreshold > reachable.withoutBonus"
+                    class="notice notice-warning small"
+                >
+                    {{ t("admin.overview.secret.tooHigh") }}
+                </p>
             </section>
 
             <section v-if="canEdit" class="card">
@@ -331,7 +408,7 @@ async function actAs(target: ActAsTarget) {
                                         class="photo-link"
                                         :title="t('admin.overview.progress.photo')"
                                     >
-                                        📷
+                                        <Icon name="solar:camera-bold-duotone" class="ico" aria-hidden="true" />
                                     </a>
                                 </div>
                             </td>
@@ -369,6 +446,28 @@ async function actAs(target: ActAsTarget) {
     border-color: var(--warning);
 }
 
+.threshold-save {
+    align-self: flex-end;
+}
+
+.reachable {
+    display: grid;
+    gap: 0.3rem;
+    margin: 0;
+}
+
+.reachable div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.reachable dd {
+    margin: 0;
+    color: var(--gold);
+    font-family: var(--font-pixel);
+}
+
 .phases {
     display: flex;
     flex-direction: column;
@@ -395,7 +494,13 @@ async function actAs(target: ActAsTarget) {
 }
 
 .phases li.current strong::before {
-    content: "▶ ";
+    content: "";
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.3em;
+    background: currentColor;
+    mask: var(--glyph-play) center / contain no-repeat;
     color: var(--gold);
 }
 

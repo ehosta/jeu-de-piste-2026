@@ -15,10 +15,18 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await applyAdminPatch(parsed.patch, {
+    const report = await applyAdminPatch(parsed.patch, {
       actorLogin: admin.intraLogin,
       dryRun,
     });
+
+    if (!dryRun) {
+      // The threshold, the secret quests or the progress may have changed.
+      await syncSecretNotifications();
+      await publishEverything();
+    }
+
+    return report;
   } catch (error) {
     if (error instanceof PatchApplyError) {
       throw createError({

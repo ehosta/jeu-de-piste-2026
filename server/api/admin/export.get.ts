@@ -17,7 +17,10 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
     prisma.team.findMany({ where: { sandbox: false }, orderBy: { name: "asc" } }),
     prisma.npc.findMany({
       orderBy: { name: "asc" },
-      include: { user: { select: { intraLogin: true } } },
+      include: {
+        user: { select: { intraLogin: true } },
+        group: { select: { name: true } },
+      },
     }),
     // Listed apart from the NPCs, since a quest can be shared between them.
     prisma.quest.findMany({
@@ -37,7 +40,12 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
   ]);
 
   return {
-    game: { paused: game.paused, pauseMessage: game.pauseMessage },
+    game: {
+      paused: game.paused,
+      pauseMessage: game.pauseMessage,
+      lore: game.lore,
+      secretThreshold: game.secretThreshold,
+    },
     teams: teams.map((team) => ({ name: team.name })),
     users: users.map((user) =>
       user.role !== "NPC"
@@ -52,6 +60,8 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
       login: npc.user.intraLogin,
       name: npc.name,
       lore: npc.lore,
+      // Solo NPCs have none.
+      ...(npc.group && { group: npc.group.name }),
     })),
     quests: quests.map((quest) => ({
       key: quest.key,
@@ -59,6 +69,7 @@ export default defineEventHandler(async (event): Promise<AdminPatch> => {
       label: quest.label,
       answer: quest.answer,
       difficulty: quest.difficulty,
+      ...(quest.secret && { secret: true }),
     })),
     progress: progress.map((teamQuest) => ({
       team: teamQuest.team.name,

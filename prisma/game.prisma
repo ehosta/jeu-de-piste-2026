@@ -1,4 +1,7 @@
 enum GamePhase {
+  // Announced, not open yet: the site only shows "soon", and only admins can
+  // log in (to prepare the game from /admin).
+  SOON
   // Before the game: 42 accounts that log in join as players without a team,
   // and admins form the teams (by hand or randomly).
   WAITING
@@ -18,6 +21,18 @@ model Game {
   // photos. Admins keep full access.
   paused       Boolean @default(false)
   pauseMessage String?
+
+  // The points (exp) a team needs before an NPC can give it a secret quest
+  // (Quest.secret, the final objective). 0: open from the start.
+  secretThreshold Int @default(0)
+
+  // When the game was first started (RUNNING), for the final quest race and
+  // the stats. Cleared when going back to SOON.
+  startedAt DateTime?
+
+  // The story shown by the "Lore" button in the header, rewritten by admins
+  // from /admin. Null: the default one (app/i18n, `lore.default`).
+  lore String?
 
   updatedAt DateTime @updatedAt
 }

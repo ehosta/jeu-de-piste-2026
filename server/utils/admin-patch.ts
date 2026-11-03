@@ -42,7 +42,8 @@ function counter(): PatchCounter {
 
 // Applies a parsed patch (shared/utils/admin-patch.ts) in one transaction, in
 // an order that lets an entry use what earlier sections created: wipe, game,
-// teams, users, team members, NPCs and their quests, quests, progress.
+// teams, users, team members, NPCs and their quests, NPC groups, quests,
+// progress.
 // `actorLogin` is the admin sending it, who can't delete or demote themself,
 // and owners (NUXT_ADMIN_LOGINS) can't be deleted or demoted by anyone. Admins
 // and bocal always end up with a team and an NPC profile
@@ -88,6 +89,7 @@ class PatchRunner {
     teams: counter(),
     users: counter(),
     npcs: counter(),
+    npcGroups: counter(),
     quests: counter(),
     progress: counter(),
   };
@@ -103,10 +105,21 @@ class PatchRunner {
     }
 
     if (patch.game) {
+      const before = await this.tx.game.findUnique({ where: { id: 1 } });
+      // The first start of the game, for the final quest race and the stats:
+      // kept through pauses and going back to WAITING, cleared by SOON.
+      const startedAt =
+        patch.game.phase === "SOON"
+          ? null
+          : patch.game.phase === "RUNNING" && !before?.startedAt
+            ? new Date()
+            : undefined;
+      const data = { ...patch.game, ...(startedAt !== undefined && { startedAt }) };
+
       await this.tx.game.upsert({
         where: { id: 1 },
-        create: { id: 1, ...patch.game },
-        update: patch.game,
+        create: { id: 1, ...data },
+        update: data,
       });
       this.report.game = true;
 
@@ -133,6 +146,10 @@ class PatchRunner {
       await this.npc(npc, `npcs[${index}]`);
     }
 
+    for (const [index, group] of (patch.npcGroups ?? []).entries()) {
+      await this.npcGroup(group, `npcGroups[${index}]`);
+    }
+
     for (const [index, quest] of (patch.quests ?? []).entries()) {
       await this.quest(quest, `quests[${index}]`);
     }
@@ -146,6 +163,21 @@ class PatchRunner {
     this.report.quests.deleted += (
       await this.tx.quest.deleteMany({ where: { npcs: { none: {} } } })
     ).count;
+    // NPC groups whose members all left or were deleted. A group of one stays,
+    // so a group can be built one NPC at a time.
+    this.report.npcGroups.deleted += (
+      await this.tx.npcGroup.deleteMany({ where: { npcs: { none: {} } } })
+    ).count;
+
+    // Accounts made NPCs by a role change (users[].role) get the NPC profile
+    // they need to show on the NPC page and play, named after their login
+    // until an admin renames it.
+    const { count: npcProfiles } = await this.tx.npc.createMany({
+      data: (
+        await this.tx.user.findMany({ where: { role: "NPC", npc: null } })
+      ).map((user) => ({ userId: user.id, name: user.intraLogin, lore: "" })),
+    });
+    this.report.npcs.created += npcProfiles;
 
     // New admins or bocal, or ones whose team or NPC was just removed. Their
     // sandbox teams go once nobody is left in them.
@@ -331,6 +363,7 @@ class PatchRunner {
     // their role).
     if ("$delete" in patch) {
       if (user?.npc) {
+        await this.handOverQuests(user.npc);
         await this.tx.npc.delete({ where: { id: user.npc.id } });
         this.report.npcs.deleted++;
       }
@@ -359,18 +392,106 @@ class PatchRunner {
       update: isStaffRole(user?.role) ? {} : { role: "NPC", teamId: null },
     });
 
+    const groupId =
+      patch.group === undefined
+        ? undefined
+        : patch.group && (await this.findOrCreateNpcGroup(patch.group)).id;
+
     const npc = user?.npc
       ? await this.tx.npc.update({
           where: { id: user.npc.id },
-          data: { name: patch.name, lore: patch.lore },
+          data: { name: patch.name, lore: patch.lore, groupId },
         })
       : await this.tx.npc.create({
-          data: { userId, name: patch.name ?? "", lore: patch.lore ?? "" },
+          data: { userId, name: patch.name ?? "", lore: patch.lore ?? "", groupId },
         });
     this.report.npcs[user?.npc ? "updated" : "created"]++;
 
     for (const [index, quest] of (patch.quests ?? []).entries()) {
       await this.quest(quest, `${path}.quests[${index}]`, npc.id);
+    }
+  }
+
+  // The quests of a deleted NPC stay in their group: another member gets them.
+  async handOverQuests(npc: { id: string; groupId: string | null }) {
+    const heir =
+      npc.groupId &&
+      (await this.tx.npc.findFirst({
+        where: { groupId: npc.groupId, id: { not: npc.id } },
+        orderBy: { name: "asc" },
+      }));
+
+    if (!heir) {
+      return;
+    }
+
+    const quests = await this.tx.quest.findMany({
+      where: { npcs: { some: { id: npc.id } } },
+      select: { id: true },
+    });
+
+    await this.tx.npc.update({
+      where: { id: heir.id },
+      data: { quests: { connect: quests } },
+    });
+  }
+
+  async findOrCreateNpcGroup(name: string) {
+    const existing = await this.tx.npcGroup.findUnique({ where: { name } });
+
+    if (existing) {
+      return existing;
+    }
+
+    this.report.npcGroups.created++;
+    return this.tx.npcGroup.create({ data: { name } });
+  }
+
+  async npcGroup(patch: NonNullable<AdminPatch["npcGroups"]>[number], path: string) {
+    // Members become solo (onDelete: SetNull) and keep their own quests.
+    if ("$delete" in patch) {
+      const { count } = await this.tx.npcGroup.deleteMany({
+        where: { name: patch.name },
+      });
+      this.report.npcGroups.deleted += count;
+      return;
+    }
+
+    // Found under its new name too, so a patch can be applied twice.
+    const existing =
+      (await this.tx.npcGroup.findUnique({ where: { name: patch.name } })) ??
+      (patch.rename
+        ? await this.tx.npcGroup.findUnique({ where: { name: patch.rename } })
+        : null);
+    const name = patch.rename ?? patch.name;
+
+    if (patch.rename && existing && existing.name !== patch.rename) {
+      if (await this.tx.npcGroup.findUnique({ where: { name } })) {
+        throw new PatchApplyError(`${path}.rename`, "npcGroupExists", { name });
+      }
+    }
+
+    if (!existing && !patch.npcs?.length) {
+      throw new PatchApplyError(`${path}.name`, "unknownNpcGroup", {
+        name: patch.name,
+      });
+    }
+
+    const group = existing
+      ? await this.tx.npcGroup.update({ where: { id: existing.id }, data: { name } })
+      : await this.tx.npcGroup.create({ data: { name } });
+    this.report.npcGroups[existing ? "updated" : "created"]++;
+
+    for (const [index, login] of (patch.npcs ?? []).entries()) {
+      const npc = await this.tx.npc.findFirst({
+        where: { user: { intraLogin: login } },
+      });
+
+      if (!npc) {
+        throw new PatchApplyError(`${path}.npcs[${index}]`, "notAnNpc", { login });
+      }
+
+      await this.tx.npc.update({ where: { id: npc.id }, data: { groupId: group.id } });
     }
   }
 
@@ -437,6 +558,7 @@ class PatchRunner {
       label: patch.label,
       answer: patch.answer,
       difficulty: patch.difficulty,
+      secret: patch.secret,
     };
 
     if (existing) {

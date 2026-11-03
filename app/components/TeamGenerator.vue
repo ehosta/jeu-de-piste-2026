@@ -85,7 +85,7 @@ async function applyPreview() {
 <template>
     <section v-if="data" class="card generator">
         <div class="card-header">
-            <h2>{{ t("admin.generator.title") }}</h2>
+            <h2><Icon name="solar:refresh-bold-duotone" class="ico" aria-hidden="true" /> {{ t("admin.generator.title") }}</h2>
             <span class="badge badge-info">{{ t("admin.generator.toPlace", { count: pool.length }) }}</span>
         </div>
         <p class="muted small">{{ t("admin.generator.text") }}</p>
@@ -113,6 +113,7 @@ async function applyPreview() {
         </label>
 
         <p v-if="pool.length" class="small summary">
+            <Icon name="pixelarticons:arrow-right" class="ico" aria-hidden="true" />
             {{ t("admin.generator.summary", { teams: plannedCount, sizes: sizeRange }) }}
         </p>
 

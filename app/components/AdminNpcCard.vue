@@ -5,6 +5,10 @@ const props = defineProps<{
     npc: AdminState["npcs"][number];
     // Every quest of the game, to give an existing one to this NPC too.
     quests: AdminState["quests"];
+    // The NPC groups' names, suggested in the group field.
+    groups: string[];
+    // The other NPCs of their group, who take over their quests if deleted.
+    groupMates: string[];
 }>();
 const emit = defineEmits<{ actAs: [npcId: string] }>();
 
@@ -13,11 +17,11 @@ const canEdit = useCanEdit();
 const { t } = useI18n();
 
 // Edits stay local until saved, and reset when the saved data changes.
-const draft = reactive({ name: "", lore: "" });
+const draft = reactive({ name: "", lore: "", group: "" });
 const questDrafts = ref<
-    Record<string, { label: string; answer: string; difficulty: number }>
+    Record<string, { label: string; answer: string; difficulty: number; secret: boolean }>
 >({});
-const newQuest = reactive({ label: "", answer: "", difficulty: 1 });
+const newQuest = reactive({ label: "", answer: "", difficulty: 1, secret: false });
 const sharedKey = ref("");
 
 // The quests this NPC doesn't give yet.
@@ -42,6 +46,7 @@ watch(
     (npc) => {
         draft.name = npc.name;
         draft.lore = npc.lore;
+        draft.group = npc.group ?? "";
         questDrafts.value = Object.fromEntries(
             npc.quests.map((quest) => [quest.key, { ...quest }]),
         );
@@ -50,12 +55,25 @@ watch(
 );
 
 const dirty = computed(
-    () => draft.name !== props.npc.name || draft.lore !== props.npc.lore,
+    () =>
+        draft.name !== props.npc.name ||
+        draft.lore !== props.npc.lore ||
+        (draft.group.trim() || null) !== props.npc.group,
 );
 
+// An empty group makes the NPC solo.
 function save() {
     return apply(
-        { npcs: [{ login: props.npc.login, name: draft.name, lore: draft.lore }] },
+        {
+            npcs: [
+                {
+                    login: props.npc.login,
+                    name: draft.name,
+                    lore: draft.lore,
+                    group: draft.group.trim() || null,
+                },
+            ],
+        },
         { success: t("admin.npcs.saved", { name: draft.name }) },
     );
 }
@@ -74,6 +92,7 @@ async function saveQuest(key: string) {
                 label: quest.label,
                 answer: quest.answer,
                 difficulty: quest.difficulty,
+                secret: quest.secret,
             },
         ],
     });
@@ -131,6 +150,7 @@ async function addQuest() {
                         label: newQuest.label,
                         answer: newQuest.answer,
                         difficulty: newQuest.difficulty,
+                        secret: newQuest.secret,
                     },
                 ],
             },
@@ -138,7 +158,7 @@ async function addQuest() {
     });
 
     if (report) {
-        Object.assign(newQuest, { label: "", answer: "", difficulty: 1 });
+        Object.assign(newQuest, { label: "", answer: "", difficulty: 1, secret: false });
     }
 }
 
@@ -146,11 +166,17 @@ function deleteNpc() {
     return apply(
         { npcs: [{ login: props.npc.login, $delete: true }] },
         {
-            confirm: t("admin.npcs.deleteNpc", {
-                name: props.npc.name,
-                count: props.npc.quests.filter((quest) => !quest.sharedWith.length).length,
-                login: props.npc.login,
-            }),
+            confirm: props.groupMates.length
+                ? t("admin.npcs.deleteGroupedNpc", {
+                    name: props.npc.name,
+                    group: props.npc.group ?? "",
+                    login: props.npc.login,
+                })
+                : t("admin.npcs.deleteNpc", {
+                    name: props.npc.name,
+                    count: props.npc.quests.filter((quest) => !quest.sharedWith.length).length,
+                    login: props.npc.login,
+                }),
         },
     );
 }
@@ -184,6 +210,20 @@ function deleteNpc() {
                 <span>{{ t("admin.npcs.lore") }}</span>
                 <textarea v-model="draft.lore" class="textarea" rows="3" />
             </label>
+            <label class="field">
+                <span>{{ t("admin.npcGroups.field") }}</span>
+                <input
+                    v-model="draft.group"
+                    class="input"
+                    maxlength="80"
+                    :list="`npc-groups-${npc.id}`"
+                    :placeholder="t('admin.npcGroups.solo')"
+                >
+                <datalist :id="`npc-groups-${npc.id}`">
+                    <option v-for="group in groups" :key="group" :value="group" />
+                </datalist>
+                <small class="muted">{{ t("admin.npcGroups.fieldHint") }}</small>
+            </label>
             <button v-if="dirty" class="btn btn-primary save" :disabled="busy">
                 {{ t("common.save") }}
             </button>
@@ -213,9 +253,13 @@ function deleteNpc() {
                         <span>{{ t("admin.npcs.difficulty") }}</span>
                         <select v-model.number="questDrafts[quest.key]!.difficulty" class="select">
                             <option v-for="value in DIFFICULTIES" :key="value" :value="value">
-                                {{ stars(value) }}
+                                {{ t("admin.npcs.difficultyTitle", { count: value }) }}
                             </option>
                         </select>
+                    </label>
+                    <label class="check">
+                        <input v-model="questDrafts[quest.key]!.secret" type="checkbox" class="checkbox">
+                        <span>{{ t("admin.npcs.secret") }}</span>
                     </label>
                     <div class="row">
                         <button class="btn btn-small btn-primary" :disabled="busy">{{ t("common.save") }}</button>
@@ -231,11 +275,15 @@ function deleteNpc() {
                             class="stars"
                             :title="t('admin.npcs.difficultyTitle', { count: quest.difficulty })"
                         >
-                            {{ stars(quest.difficulty) }}
+                            <DifficultyStars :difficulty="quest.difficulty" />
+                        </span>
+                        <span v-if="quest.secret" class="badge badge-warning" :title="t('admin.npcs.secretHint')">
+                            <Icon name="solar:crown-star-bold-duotone" class="ico" aria-hidden="true" />
+                            {{ t("secret.badge") }}
                         </span>
                         <p>{{ quest.label }}</p>
                         <p v-if="quest.sharedWith.length" class="small shared">
-                            ⇄ {{
+                            <Icon name="pixelarticons:arrows-horizontal" class="ico" aria-hidden="true" /> {{
                                 t("admin.npcs.sharedWith", {
                                     names: quest.sharedWith.map((other) => other.name).join(", "),
                                 })
@@ -292,9 +340,13 @@ function deleteNpc() {
                         <span>{{ t("admin.npcs.difficulty") }}</span>
                         <select v-model.number="newQuest.difficulty" class="select">
                             <option v-for="value in DIFFICULTIES" :key="value" :value="value">
-                                {{ stars(value) }}
+                                {{ t("admin.npcs.difficultyTitle", { count: value }) }}
                             </option>
                         </select>
+                    </label>
+                    <label class="check">
+                        <input v-model="newQuest.secret" type="checkbox" class="checkbox">
+                        <span>{{ t("admin.npcs.secret") }}</span>
                     </label>
                     <button class="btn btn-primary save" :disabled="busy">{{ t("admin.npcs.addQuestButton") }}</button>
                 </form>
@@ -304,6 +356,12 @@ function deleteNpc() {
 </template>
 
 <style scoped>
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .lore {
     white-space: pre-line;
 }

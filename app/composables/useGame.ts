@@ -8,19 +8,20 @@ export function useGame() {
       phase: "WAITING" as GamePhase,
       paused: false,
       pauseMessage: null as string | null,
+      lore: null as string | null,
     }),
   });
 }
 
 // Why NPCs and players can't act right now, as server/utils/game.ts decides:
-// before the game starts, and while it is paused (except for an admin acting
+// before the game starts (SOON, WAITING), and while it is paused (except for an admin acting
 // as one of them).
 export function useGameLock() {
   const { data: game } = useGame();
   const { user } = useUserSession();
 
   return computed(() => {
-    if (game.value.phase === "WAITING") {
+    if (game.value.phase !== "RUNNING") {
       return "notStarted" as const;
     }
 

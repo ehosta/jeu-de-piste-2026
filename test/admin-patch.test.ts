@@ -7,6 +7,33 @@ function issues(input: unknown) {
 }
 
 describe('parseAdminPatch', () => {
+  it('sets the game lore, or resets it to the default one', () => {
+    const set = parseAdminPatch({ game: { lore: '  Il était une fois Faurtitou.  ' } })
+    expect(set.ok && set.patch.game).toEqual({ lore: 'Il était une fois Faurtitou.' })
+
+    const reset = parseAdminPatch({ game: { lore: null } })
+    expect(reset.ok && reset.patch.game).toEqual({ lore: null })
+
+    // An empty text is the default story too.
+    const empty = parseAdminPatch({ game: { lore: '   ' } })
+    expect(empty.ok && empty.patch.game).toEqual({ lore: null })
+
+    expect(issues({ game: { lore: 'x'.repeat(10_001) } })[0]).toMatchObject({ path: 'game.lore', code: 'tooLong' })
+  })
+
+  it('sets the secret quests threshold and marks quests as secret', () => {
+    const parsed = parseAdminPatch({
+      game: { secretThreshold: 1200, phase: 'SOON' },
+      quests: [{ key: 'final', secret: true }],
+    })
+    expect(parsed.ok && parsed.patch.game).toEqual({ secretThreshold: 1200, phase: 'SOON' })
+    expect(parsed.ok && parsed.patch.quests).toEqual([{ key: 'final', secret: true }])
+
+    expect(issues({ game: { secretThreshold: -1 } })[0]).toMatchObject({ path: 'game.secretThreshold', code: 'thresholdInvalid' })
+    expect(issues({ game: { secretThreshold: 2.5 } })[0]).toMatchObject({ code: 'thresholdInvalid' })
+    expect(issues({ quests: [{ key: 'final', secret: 'yes' }] })[0]).toMatchObject({ path: 'quests[0].secret', code: 'booleanExpected' })
+  })
+
   it('accepts a full document', () => {
     const parsed = parseAdminPatch({
       wipe: ['progress'],
@@ -107,6 +134,32 @@ describe('parseAdminPatch', () => {
       }),
     ).toEqual([])
     expect(issues({ quests: [{ key: 'q', npcs: [] }] })[0]?.path).toBe('quests[0].npcs')
+  })
+
+  it('puts NPCs in a group, or makes them solo again', () => {
+    const parsed = parseAdminPatch({
+      npcs: [
+        { login: 'dprince', group: '  Bocal  ' },
+        { login: 'bwayne', group: null },
+      ],
+      npcGroups: [
+        { name: 'Bocal', rename: 'Le Bocal', npcs: ['CKent'] },
+        { name: 'Admins', $delete: true },
+      ],
+    })
+
+    expect(parsed.ok && parsed.patch.npcs).toEqual([
+      { login: 'dprince', group: 'Bocal' },
+      { login: 'bwayne', group: null },
+    ])
+    expect(parsed.ok && parsed.patch.npcGroups).toEqual([
+      { name: 'Bocal', rename: 'Le Bocal', npcs: ['ckent'] },
+      { name: 'Admins', $delete: true },
+    ])
+
+    expect(issues({ npcs: [{ login: 'dprince', group: '' }] })[0]).toMatchObject({ path: 'npcs[0].group', code: 'empty' })
+    expect(issues({ npcGroups: [{ name: 'Bocal' }, { name: 'Bocal' }] })[0]?.code).toBe('duplicate')
+    expect(issues({ npcGroups: [{ name: 'Bocal', members: [] }] })[0]?.path).toBe('npcGroups[0].members')
   })
 
   it('rejects unknown wipe targets', () => {

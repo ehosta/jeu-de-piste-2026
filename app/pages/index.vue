@@ -3,6 +3,7 @@ const { user } = useUserSession();
 const { actAs } = useActAs();
 // NPCs can't scan before the game starts or while it is paused.
 const lock = useGameLock();
+const { data: game } = useGame();
 const { t } = useI18n();
 
 // An admin or bocal can also play in a team and be an NPC: shortcuts to switch
@@ -19,7 +20,20 @@ const RESTORED_SLOT = 2;
 </script>
 
 <template>
-    <main v-if="!user" class="container page landing">
+    <main v-if="!user && game.phase === 'SOON'" class="container page narrow soon">
+        <!-- Announced, not open yet: only admins can log in (the others are
+             sent back here with ?login_error=soon). -->
+        <img src="/favicon.svg" alt="" class="soon-mark" width="96" height="96">
+        <p class="eyebrow">{{ t("landing.eyebrow") }}</p>
+        <h1><span class="gilded">Campudex</span></h1>
+        <p class="soon-title">{{ t("soon.title") }}</p>
+        <p class="lead">{{ t("soon.text") }}</p>
+        <div class="soon-admin">
+            <LoginButton ghost :label="t('soon.admin')" />
+        </div>
+    </main>
+
+    <main v-else-if="!user" class="container page landing">
         <section class="hero">
             <div class="stack hero-text">
                 <p class="eyebrow">{{ t("landing.eyebrow") }}</p>
@@ -33,9 +47,7 @@ const RESTORED_SLOT = 2;
                     </figcaption>
                 </figure>
                 <p class="muted">{{ t("landing.call") }}</p>
-                <a href="/auth/42" class="btn btn-primary login-button">
-                    {{ t("landing.login") }}
-                </a>
+                <LoginButton :label="t('landing.login')" />
             </div>
 
             <div class="book" aria-hidden="true">
@@ -46,7 +58,8 @@ const RESTORED_SLOT = 2;
                         class="album-slot"
                         :class="{ restored: slot === RESTORED_SLOT }"
                     >
-                        <span>{{ slot === RESTORED_SLOT ? "✦" : "?" }}</span>
+                        <Icon v-if="slot === RESTORED_SLOT" name="solar:stars-bold-duotone" />
+                        <span v-else>?</span>
                     </div>
                 </div>
                 <div class="book-page">
@@ -120,6 +133,48 @@ const RESTORED_SLOT = 2;
 <style scoped>
 .me-actions {
     width: 100%;
+}
+
+.soon {
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    min-height: calc(100dvh - var(--header-height));
+    text-align: center;
+}
+
+.soon h1 {
+    font-size: clamp(2.4rem, 1.6rem + 3.5vw, 3.8rem);
+}
+
+/* The Campudex camera, pixels kept sharp. */
+.soon-mark {
+    width: 96px;
+    height: 96px;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 14px rgb(180 140 255 / 55%));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+.soon-title {
+    color: var(--gold);
+    font-family: var(--font-pixel);
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+}
+
+.soon-admin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
 }
 
 .landing {
@@ -211,14 +266,14 @@ const RESTORED_SLOT = 2;
     opacity: 1;
 }
 
-.login-button {
+.hero-text :deep(.login-button) {
     align-self: flex-start;
     min-width: 15rem;
     font-size: 1.1rem;
 }
 
 @media (max-width: 30rem) {
-    .login-button {
+    .hero-text :deep(.login-button) {
         align-self: stretch;
     }
 }

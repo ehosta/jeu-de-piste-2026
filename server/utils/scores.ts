@@ -4,6 +4,8 @@
 // team's place: their validations don't count in the order of the real teams,
 // and they only show (marked `sandbox`) with `includeSandbox`, for admins
 // testing the game.
+// `finalRace` ranks the teams by when they first validated a secret quest (the
+// final objective), whenever they unlocked it.
 export async function computeScores({ includeSandbox = false } = {}) {
   const sandbox = includeSandbox ? undefined : false;
   const [teams, validations, questCount] = await Promise.all([
@@ -22,6 +24,7 @@ export async function computeScores({ includeSandbox = false } = {}) {
         quest: {
           select: {
             difficulty: true,
+            secret: true,
             npcs: { select: { name: true }, orderBy: { name: "asc" } },
           },
         },
@@ -50,6 +53,7 @@ export async function computeScores({ includeSandbox = false } = {}) {
         validation.validatedBy?.name ??
         validation.quest.npcs.map((npc) => npc.name).join(" / "),
       difficulty: validation.quest.difficulty,
+      secret: validation.quest.secret,
       rank,
       points: questPoints(validation.quest.difficulty, rank),
     };
@@ -97,5 +101,34 @@ export async function computeScores({ includeSandbox = false } = {}) {
     rank: real.filter((other) => other.points > entry.points).length + 1,
   }));
 
-  return { questCount, leaderboard, log: log.reverse() };
+  // The log is in validation order: the first secret validation of each team.
+  const finished = new Map<string, (typeof log)[number]>();
+
+  for (const entry of log) {
+    if (entry.secret && !finished.has(entry.teamId)) {
+      finished.set(entry.teamId, entry);
+    }
+  }
+
+  const finishers = [...finished.values()];
+  const realFinishers = finishers.filter((entry) => !entry.sandbox);
+  const finalRace = finishers.map((entry) => ({
+    teamId: entry.teamId,
+    team: entry.team,
+    sandbox: entry.sandbox,
+    at: entry.at,
+    // A sandbox team gets the rank it would have among the real teams.
+    rank:
+      realFinishers.filter((other) => (other.at?.getTime() ?? 0) < (entry.at?.getTime() ?? 0))
+        .length + 1,
+  }));
+
+  return { questCount, leaderboard, finalRace, log: log.reverse() };
+}
+
+// A team's points (a sandbox one's included), to check the secret quests'
+// threshold.
+export async function teamPoints(teamId: string) {
+  const { leaderboard } = await computeScores({ includeSandbox: true });
+  return leaderboard.find((entry) => entry.teamId === teamId)?.points ?? 0;
 }
