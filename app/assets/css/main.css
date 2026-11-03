@@ -10,7 +10,7 @@
 :root {
   --font-body: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Cinzel", Georgia, serif;
-  --font-pixel: "Pixelify Sans", var(--font-body);
+  --font-pixel: "Tiny5", var(--font-body);
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
   --bg: #eadcbf;
@@ -122,8 +122,6 @@ body {
   font-size: 1.0625rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* Pixelify Sans draws its "fi" ligature as a lone "A" ("final" → "Anal"). */
-  font-variant-ligatures: no-common-ligatures;
 }
 
 @media (prefers-color-scheme: dark) {
