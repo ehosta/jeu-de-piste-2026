@@ -169,6 +169,16 @@ class PatchRunner {
       await this.tx.npcGroup.deleteMany({ where: { npcs: { none: {} } } })
     ).count;
 
+    // Accounts made NPCs by a role change (users[].role) get the NPC profile
+    // they need to show on the NPC page and play, named after their login
+    // until an admin renames it.
+    const { count: npcProfiles } = await this.tx.npc.createMany({
+      data: (
+        await this.tx.user.findMany({ where: { role: "NPC", npc: null } })
+      ).map((user) => ({ userId: user.id, name: user.intraLogin, lore: "" })),
+    });
+    this.report.npcs.created += npcProfiles;
+
     // New admins or bocal, or ones whose team or NPC was just removed. Their
     // sandbox teams go once nobody is left in them.
     await ensureAllAdminVersions(this.tx);
